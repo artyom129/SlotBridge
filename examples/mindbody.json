@@ -1,0 +1,15 @@
+{
+  "messageId": "mb-demo-1",
+  "eventId": "appointmentBooking.created",
+  "transactionKey": "slot-demo",
+  "eventData": {
+    "appointmentId": 9001,
+    "status": "Scheduled",
+    "clientFirstName": "Maya",
+    "clientLastName": "Chen",
+    "staffFirstName": "Alex",
+    "staffLastName": "Rivera",
+    "startDateTime": "2026-08-11T18:00:00+00:00",
+    "endDateTime": "2026-08-11T19:00:00+00:00"
+  }
+}

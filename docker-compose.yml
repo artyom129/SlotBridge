@@ -1,0 +1,12 @@
+services:
+  slotbridge:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      SLOTBRIDGE_DB_PATH: /app/data/slotbridge.db
+      SLOTBRIDGE_DEMO_MODE: "true"
+    volumes:
+      - slotbridge_data:/app/data
+volumes:
+  slotbridge_data:
