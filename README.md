@@ -45,6 +45,7 @@ Windows:
 ```bat
 .venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
 python scripts/seed_demo.py
 python run.py
 ```
@@ -54,6 +55,7 @@ macOS/Linux:
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 python scripts/seed_demo.py
 python run.py
 ```
@@ -68,7 +70,9 @@ Open:
 
 - `GET /api/health`
 - `GET /api/appointments`
+- `GET /api/appointments.csv`
 - `GET /api/conflicts`
+- `GET /api/conflicts.csv`
 - `GET /api/feasibility`
 - `GET /api/sync-jobs`
 - `GET /api/dead-letters`
@@ -77,6 +81,12 @@ Open:
 - `POST /webhooks/google`
 - `POST /api/reconcile`
 - `POST /api/sync-plan/{appointment_id}?target=google`
+
+## Configuration
+
+Copy `.env.example` to `.env`. The repository ships with no secrets or vendor credentials.
+
+The `data/` directory is kept in Git, but SQLite runtime files are ignored.
 
 ## Notes about vendor connectors
 
@@ -93,3 +103,5 @@ Google Calendar is modeled as the central visibility layer. Demo mode simulates 
 ```bash
 pytest -q
 ```
+
+GitHub Actions runs the test suite on pushes and pull requests.
