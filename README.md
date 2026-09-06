@@ -1,3 +1,5 @@
+**English** | [Русский](README_RU.md)
+
 # SlotBridge
 
 Appointment synchronization control plane for businesses that use multiple booking systems.
