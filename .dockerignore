@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+.env
+.pytest_cache
+__pycache__
+*.py[cod]
+*.db
+*.db-shm
+*.db-wal
+*.sqlite3
+.coverage
+htmlcov
+data/*
+!data/.gitkeep

@@ -1,0 +1,396 @@
+from __future__ import annotations
+
+from datetime import date, datetime, time, timezone
+from decimal import Decimal
+from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
+
+from app.models import AppointmentAuditAction, AppointmentStatus, UserRole
+
+
+class ORMModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=32)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def strip_names(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Name must not be blank")
+        return stripped
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+
+class UserOut(ORMModel):
+    id: UUID
+    email: EmailStr
+    first_name: str
+    last_name: str
+    phone: str | None
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class OrganizationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    slug: str = Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", min_length=2, max_length=120)
+    timezone: str = Field(min_length=1, max_length=64)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Name must not be blank")
+        return stripped
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError:
+            raise ValueError("Unknown IANA timezone") from None
+        return value
+
+
+class OrganizationOut(ORMModel):
+    id: UUID
+    name: str
+    slug: str
+    timezone: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class BranchOut(ORMModel):
+    id: UUID
+    organization_id: UUID
+    name: str
+    address: str
+    timezone: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ServiceOut(ORMModel):
+    id: UUID
+    organization_id: UUID
+    name: str
+    description: str
+    duration_minutes: int
+    price: Decimal | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class EmployeeOut(ORMModel):
+    id: UUID
+    user_id: UUID
+    organization_id: UUID
+    branch_id: UUID
+    display_name: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class LocalRecurringInterval(BaseModel):
+    employee_id: UUID
+    branch_id: UUID
+    day_of_week: int = Field(ge=0, le=6, description="0=Monday, ..., 6=Sunday")
+    start_time: time
+    end_time: time
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> "LocalRecurringInterval":
+        if self.start_time.tzinfo is not None or self.end_time.tzinfo is not None:
+            raise ValueError("Recurring schedule times must be local wall-clock times")
+        if self.start_time >= self.end_time:
+            raise ValueError("start_time must be before end_time")
+        return self
+
+
+class WorkScheduleCreate(LocalRecurringInterval):
+    pass
+
+
+class WorkScheduleOut(ORMModel):
+    id: UUID
+    employee_id: UUID
+    branch_id: UUID
+    organization_id: UUID
+    day_of_week: int
+    start_time: time
+    end_time: time
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ScheduleBreakCreate(LocalRecurringInterval):
+    pass
+
+
+class ScheduleBreakOut(WorkScheduleOut):
+    pass
+
+
+class ScheduleExceptionCreate(BaseModel):
+    employee_id: UUID
+    branch_id: UUID
+    local_date: date
+    is_day_off: bool = False
+    start_time: time | None = None
+    end_time: time | None = None
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> "ScheduleExceptionCreate":
+        if self.is_day_off:
+            if self.start_time is not None or self.end_time is not None:
+                raise ValueError("Day-off exception cannot contain a time interval")
+            return self
+        if self.start_time is None or self.end_time is None:
+            raise ValueError("Replacement exception requires start_time and end_time")
+        if self.start_time.tzinfo is not None or self.end_time.tzinfo is not None:
+            raise ValueError("Exception times must be local wall-clock times")
+        if self.start_time >= self.end_time:
+            raise ValueError("start_time must be before end_time")
+        return self
+
+
+class ScheduleExceptionOut(ORMModel):
+    id: UUID
+    employee_id: UUID
+    branch_id: UUID
+    organization_id: UUID
+    local_date: date
+    is_day_off: bool
+    start_time: time | None
+    end_time: time | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class BlockedSlotCreate(BaseModel):
+    employee_id: UUID
+    branch_id: UUID
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    reason: str | None = Field(default=None, max_length=500)
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_and_normalize_interval(self) -> "BlockedSlotCreate":
+        if self.starts_at >= self.ends_at:
+            raise ValueError("starts_at must be before ends_at")
+        self.starts_at = self.starts_at.astimezone(timezone.utc)
+        self.ends_at = self.ends_at.astimezone(timezone.utc)
+        return self
+
+
+class BlockedSlotOut(ORMModel):
+    id: UUID
+    employee_id: UUID
+    branch_id: UUID
+    organization_id: UUID
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    reason: str | None
+    created_by_user_id: UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    @field_validator("starts_at", "ends_at", mode="before")
+    @classmethod
+    def normalize_stored_instant(cls, value: datetime) -> datetime:
+        # PostgreSQL returns aware timestamptz values. SQLite drops tzinfo, so tests and
+        # supported local development treat those persisted values as UTC explicitly.
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class AvailabilitySlot(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class AvailabilityResponse(BaseModel):
+    date: date
+    timezone: str
+    service_duration_minutes: int
+    slot_interval_minutes: int
+    slots: list[AvailabilitySlot]
+
+
+class AppointmentCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    branch_id: UUID
+    employee_id: UUID
+    service_id: UUID
+    starts_at: AwareDatetime
+    client_note: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("starts_at", mode="after")
+    @classmethod
+    def normalize_start(cls, value: datetime) -> datetime:
+        return value.astimezone(timezone.utc)
+
+
+class AppointmentCancelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AppointmentRescheduleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    starts_at: AwareDatetime
+    reason: str | None = Field(default=None, max_length=500)
+
+    @field_validator("starts_at", mode="after")
+    @classmethod
+    def normalize_start(cls, value: datetime) -> datetime:
+        return value.astimezone(timezone.utc)
+
+
+class AppointmentStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: AppointmentStatus
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class AppointmentResourceOut(BaseModel):
+    id: UUID
+    name: str
+
+
+class AppointmentOut(BaseModel):
+    id: UUID
+    organization_id: UUID
+    client_user_id: UUID
+    branch: AppointmentResourceOut
+    employee: AppointmentResourceOut
+    service: AppointmentResourceOut
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    timezone: str
+    local_starts_at: AwareDatetime
+    local_ends_at: AwareDatetime
+    status: AppointmentStatus
+    client_note: str | None
+    cancellation_reason: str | None
+    cancelled_at: AwareDatetime | None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def normalize_metadata_time(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class AppointmentStatusHistoryOut(ORMModel):
+    id: UUID
+    old_status: AppointmentStatus | None
+    new_status: AppointmentStatus
+    changed_by_user_id: UUID
+    reason: str | None
+    created_at: AwareDatetime
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def normalize_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class AppointmentAuditOut(ORMModel):
+    id: UUID
+    action: AppointmentAuditAction
+    changed_by_user_id: UUID
+    reason: str | None
+    old_starts_at: AwareDatetime | None
+    old_ends_at: AwareDatetime | None
+    new_starts_at: AwareDatetime | None
+    new_ends_at: AwareDatetime | None
+    created_at: AwareDatetime
+
+    @field_validator(
+        "old_starts_at",
+        "old_ends_at",
+        "new_starts_at",
+        "new_ends_at",
+        "created_at",
+        mode="before",
+    )
+    @classmethod
+    def normalize_audit_time(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class AppointmentDetailOut(AppointmentOut):
+    status_history: list[AppointmentStatusHistoryOut]
+    audit_events: list[AppointmentAuditOut]
+
+
+class AppointmentListResponse(BaseModel):
+    items: list[AppointmentOut]
