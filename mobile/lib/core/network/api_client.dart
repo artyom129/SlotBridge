@@ -17,9 +17,7 @@ class ApiClient {
               receiveTimeout: Duration(
                 seconds: AppConfig.isProduction ? 90 : 20,
               ),
-              sendTimeout: Duration(
-                seconds: AppConfig.isProduction ? 30 : 20,
-              ),
+              sendTimeout: Duration(seconds: AppConfig.isProduction ? 30 : 20),
               contentType: Headers.jsonContentType,
               responseType: ResponseType.json,
             ),

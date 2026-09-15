@@ -185,6 +185,9 @@ resources and asks Render to generate the JWT secret.
 
 Production API: <https://slotbridge-api.onrender.com>
 
+Recorded deployment checks and APK metadata:
+[production verification](docs/production-verification.md).
+
 ```text
 Mobile App
     │ HTTPS
