@@ -46,6 +46,11 @@ Override it for a physical device, remote environment, or HTTPS deployment:
 flutter run --dart-define=SLOTBRIDGE_API_BASE_URL=https://api.example.com
 ```
 
+Release builds default to the deployed production API:
+`https://slotbridge-api.onrender.com`. The production network timeout is long
+enough for a Render Free cold start. A different production backend can still
+be supplied with `--dart-define`; non-HTTPS release URLs are rejected.
+
 For a physical device on the same network, use the development computer's LAN
 address instead of `127.0.0.1`. Plain HTTP is allowed only in the Android debug
 manifest for local development. Production builds should use HTTPS.

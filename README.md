@@ -183,14 +183,16 @@ its FastAPI API, SQLAlchemy models, Alembic migrations, JWT auth, RBAC, tenant
 isolation, and booking engine. The checked-in `render.yaml` creates no paid
 resources and asks Render to generate the JWT secret.
 
+Production API: <https://slotbridge-api.onrender.com>
+
 ```text
 Mobile App
     │ HTTPS
     ▼
-FastAPI
+Render Free / FastAPI
     │
     ▼
-PostgreSQL
+Supabase Free / PostgreSQL
 ```
 
 The container waits for PostgreSQL, applies Alembic migrations, and starts
@@ -262,9 +264,9 @@ demo password into production.
 
 ## Mobile build configuration
 
-The API URL has one source:
-`SLOTBRIDGE_API_BASE_URL` supplied through `--dart-define`. No source edit is
-needed when switching modes.
+The API URL has one source: `SLOTBRIDGE_API_BASE_URL`. Release builds default
+to `https://slotbridge-api.onrender.com`; `--dart-define` can override it for a
+different HTTPS deployment. No source edit is needed when switching modes.
 
 Local Android debug/LAN example:
 
@@ -275,10 +277,17 @@ flutter run --dart-define=SLOTBRIDGE_ENVIRONMENT=development --dart-define=SLOTB
 Production APK:
 
 ```powershell
-flutter build apk --release --dart-define=SLOTBRIDGE_ENVIRONMENT=production --dart-define=SLOTBRIDGE_API_BASE_URL=https://<production-api-domain>
+flutter build apk --release
 ```
 
-Release builds fail closed when the URL is missing or does not use HTTPS.
+The deployed production command is:
+
+```powershell
+flutter build apk --release --dart-define=SLOTBRIDGE_ENVIRONMENT=production --dart-define=SLOTBRIDGE_API_BASE_URL=https://slotbridge-api.onrender.com
+```
+
+Production uses a 90-second receive timeout so the first request can survive a
+Render Free cold start. Release builds reject non-HTTPS URLs.
 Android cleartext traffic is disabled in release and remains enabled only in
 the debug manifest for local development. The application ID remains
 `com.slotbridge.slotbridge_mobile`.

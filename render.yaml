@@ -6,7 +6,6 @@ services:
     region: frankfurt
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/v1/health/ready
-    maxShutdownDelaySeconds: 30
     envVars:
       - key: SLOTBRIDGE_ENVIRONMENT
         value: production

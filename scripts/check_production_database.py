@@ -14,7 +14,7 @@ from app.config import get_settings  # noqa: E402
 from app.database import engine  # noqa: E402
 
 
-EXPECTED_REVISION = "20260911_0003"
+EXPECTED_REVISION = "20260915_0004"
 EXPECTED_CONSTRAINT = "ex_appointments_employee_time_active"
 
 
@@ -26,11 +26,11 @@ def main() -> None:
         raise SystemExit("Production must use PostgreSQL through psycopg")
 
     with engine.connect() as connection:
-        using_ssl = bool(
-            connection.scalar(
-                text("SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()")
-            )
-        )
+        # Supabase Session Pooler terminates client TLS before its internal
+        # PostgreSQL connection, so pg_stat_ssl can report the pooler's
+        # internal hop instead of the encryption used by this client.
+        raw_connection = connection.connection.driver_connection
+        using_ssl = bool(raw_connection.pgconn.ssl_in_use)
         revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
         has_btree_gist = bool(
             connection.scalar(
@@ -52,6 +52,17 @@ def main() -> None:
                 {"constraint_name": EXPECTED_CONSTRAINT},
             )
         )
+        exposed_api_tables = connection.scalar(
+            text(
+                "SELECT count(*) FROM pg_roles r "
+                "CROSS JOIN pg_tables t "
+                "WHERE r.rolname IN ('anon', 'authenticated', 'service_role') "
+                "AND t.schemaname = 'public' "
+                "AND has_table_privilege(r.rolname, "
+                "quote_ident(t.schemaname) || '.' || quote_ident(t.tablename), "
+                "'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')"
+            )
+        )
 
     result = {
         "driver": engine.dialect.driver,
@@ -59,6 +70,7 @@ def main() -> None:
         "migration_revision": revision,
         "btree_gist": has_btree_gist,
         "exclusion_constraint": has_exclusion_constraint,
+        "data_api_tables_exposed": exposed_api_tables,
     }
     print(json.dumps(result, sort_keys=True))
 
@@ -68,6 +80,8 @@ def main() -> None:
         raise SystemExit(f"Expected Alembic revision {EXPECTED_REVISION}")
     if not has_btree_gist or not has_exclusion_constraint:
         raise SystemExit("PostgreSQL double-booking protection is incomplete")
+    if exposed_api_tables:
+        raise SystemExit("Supabase Data API roles must not access SlotBridge tables")
 
 
 if __name__ == "__main__":

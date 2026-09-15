@@ -7,6 +7,14 @@ The deployment uses only free resources:
 - Render Free Web Service for the Dockerized FastAPI backend;
 - Supabase Free for PostgreSQL only.
 
+Deployed resources:
+
+- API: <https://slotbridge-api.onrender.com>;
+- Render service: `slotbridge-api`, Frankfurt, `free` plan;
+- Supabase project: `slotbridge`, Frankfurt (`eu-central-1`), Free plan;
+- liveness: <https://slotbridge-api.onrender.com/api/v1/health/live>;
+- readiness: <https://slotbridge-api.onrender.com/api/v1/health/ready>.
+
 Supabase Auth, PostgREST, Storage, Realtime, and Edge Functions are not part of
 the application architecture. SlotBridge continues to own registration, JWT
 authentication, RBAC, tenant isolation, scheduling, and transactional booking.
@@ -32,6 +40,8 @@ This is a portfolio deployment, not an always-warm commercial service:
 
 The Android app remains independent of the laptop. A sleeping free service can
 cause a cold-start delay, but neither the laptop nor local Docker is involved.
+The production Flutter client allows up to 90 seconds for the first response so
+the initial request can survive that wake-up delay.
 
 ## Architecture compatibility audit
 
@@ -58,12 +68,20 @@ The existing architecture is compatible:
 - `sslmode=require` is mandatory in production configuration.
 - Migration `20260911_0003` creates `btree_gist` and the GiST exclusion
   constraint for active appointment ranges.
+- Deployment migration `20260915_0004` revokes all SlotBridge table privileges
+  from Supabase's `anon`, `authenticated`, and `service_role` roles, plus
+  `PUBLIC`, and removes automatic table grants for the migration owner.
+  Supabase Data API cannot bypass FastAPI's authorization. SQLAlchemy's
+  database owner retains access. No booking tables or data are changed.
+  This security boundary is deliberately retained on migration rollback.
 - Idempotency uses `pg_advisory_xact_lock`, so the lock remains scoped to the
   booking transaction. Transactions, unique constraints, exclusion constraints,
   RBAC queries, and tenant filters remain unchanged.
 
 Supabase connection guidance:
 <https://supabase.com/docs/guides/database/connecting-to-postgres>.
+Supabase Data API grant guidance:
+<https://supabase.com/docs/guides/api/securing-your-api>.
 
 ## Render Blueprint
 
@@ -113,6 +131,12 @@ The non-secret Render values are defined by `render.yaml`:
 Render generates `JWT_SECRET`. `DATABASE_URL` is entered as a secret. Native
 Flutter does not need CORS, so `CORS_ALLOWED_ORIGINS` remains empty.
 
+The live service stores `DATABASE_URL` and `JWT_SECRET` only as Render
+environment secrets. The deployment workstation keeps its generated database,
+JWT, and one-shot demo-seed credentials outside the repository in Windows
+DPAPI-encrypted credential files under `%APPDATA%\SlotBridge`. They are never
+written to `.env`, source files, build arguments, Flutter, or Git.
+
 ## Migrations and one-time seed
 
 With the Supabase production URL present only in the current process:
@@ -144,7 +168,18 @@ python scripts/check_production_database.py
 ```
 
 The check reports only the driver, SSL state, Alembic revision, `btree_gist`,
-and exclusion-constraint state. It does not print the database URL or password.
+exclusion-constraint state, and number of tables exposed to Data API roles
+(must be zero). It does not print the database URL or password.
+
+Run the safe two-request production concurrency check with:
+
+```powershell
+$env:SLOTBRIDGE_PRODUCTION_API_URL = 'https://slotbridge-api.onrender.com'
+python scripts/check_production_concurrency.py
+```
+
+It registers two throwaway clients, sends two bookings for one slot, requires
+the result to be one `201` and one `409`, and cancels the winning appointment.
 
 ## Completion gate
 
@@ -152,7 +187,7 @@ Deployment is complete only after recording:
 
 - both health endpoints returning 200 over Render HTTPS;
 - Supabase connection using psycopg and SSL;
-- Alembic revision `20260911_0003 (head)`;
+- Alembic revision `20260915_0004 (head)`;
 - remote registration, login, current user, catalog, availability, booking,
   appointment details, reschedule, cancel, and released-slot checks;
 - one success and conflicts for simultaneous requests to the same slot;

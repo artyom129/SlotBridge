@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 abstract final class AppConfig {
   static const _definedBaseUrl = String.fromEnvironment(
     'SLOTBRIDGE_API_BASE_URL',
+    defaultValue: kReleaseMode
+        ? 'https://slotbridge-api.onrender.com'
+        : '',
   );
   static const _environment = String.fromEnvironment(
     'SLOTBRIDGE_ENVIRONMENT',
@@ -17,6 +20,9 @@ abstract final class AppConfig {
     releaseMode: kReleaseMode,
     isAndroid: Platform.isAndroid,
   );
+
+  static bool get isProduction =>
+      kReleaseMode || _environment.trim().toLowerCase() == 'production';
 
   static String resolveApiBaseUrl({
     required String definedBaseUrl,
