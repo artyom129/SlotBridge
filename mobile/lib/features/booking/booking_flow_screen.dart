@@ -278,13 +278,21 @@ class _DateStep extends ConsumerWidget {
   }
 }
 
-class _AvailabilityStep extends ConsumerWidget {
+class _AvailabilityStep extends ConsumerStatefulWidget {
   const _AvailabilityStep({required this.state});
 
   final BookingState state;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AvailabilityStep> createState() => _AvailabilityStepState();
+}
+
+class _AvailabilityStepState extends ConsumerState<_AvailabilityStep> {
+  bool _joiningWaitlist = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
     final availability = state.availability;
     if (availability == null || availability.slots.isEmpty) {
       return EmptyState(
@@ -302,33 +310,46 @@ class _AvailabilityStep extends ConsumerWidget {
       children: [
         if (state.error != null && state.slot != null) ...[
           FilledButton.icon(
-            onPressed: () async {
-              final ok = await ref
-                  .read(bookingControllerProvider.notifier)
-                  .joinWaitlist();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      ok
-                          ? (Localizations.localeOf(context).languageCode ==
-                                    'en'
-                                ? 'Added to waitlist'
-                                : 'Добавлено в лист ожидания')
-                          : (Localizations.localeOf(context).languageCode ==
-                                    'en'
-                                ? 'Could not join waitlist'
-                                : 'Не удалось добавить в лист ожидания'),
-                    ),
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.notifications_active_outlined),
+            onPressed: _joiningWaitlist
+                ? null
+                : () async {
+                    final isEnglish =
+                        Localizations.localeOf(context).languageCode == 'en';
+                    final messenger = ScaffoldMessenger.of(context);
+                    setState(() => _joiningWaitlist = true);
+                    final ok = await ref
+                        .read(bookingControllerProvider.notifier)
+                        .joinWaitlist();
+                    if (!mounted) return;
+                    setState(() => _joiningWaitlist = false);
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok
+                              ? (isEnglish
+                                    ? 'Added to waitlist'
+                                    : 'Добавлено в лист ожидания')
+                              : (isEnglish
+                                    ? 'Could not join waitlist'
+                                    : 'Не удалось добавить в лист ожидания'),
+                        ),
+                      ),
+                    );
+                  },
+            icon: _joiningWaitlist
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.notifications_active_outlined),
             label: Text(
-              Localizations.localeOf(context).languageCode == 'en'
-                  ? 'Notify me if it becomes available'
-                  : 'Сообщить, если освободится',
+              _joiningWaitlist
+                  ? (Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Adding…'
+                        : 'Добавляем…')
+                  : (Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Notify me if it becomes available'
+                        : 'Сообщить, если освободится'),
             ),
           ),
           const SizedBox(height: 16),

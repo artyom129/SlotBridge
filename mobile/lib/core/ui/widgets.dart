@@ -153,6 +153,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = switch (status) {
       'BOOKED' => Colors.blue,
       'CONFIRMED' => Colors.teal,
@@ -172,7 +173,7 @@ class StatusBadge extends StatelessWidget {
         child: Text(
           appointmentStatusLabel(context.l10n, status),
           style: TextStyle(
-            color: color.shade700,
+            color: isDark ? color.shade200 : color.shade700,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),

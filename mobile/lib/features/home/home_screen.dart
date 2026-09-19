@@ -10,11 +10,47 @@ import '../../core/providers.dart';
 
 import 'package:intl/intl.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String? _acceptingWaitlistId;
+
+  Future<void> _acceptWaitlist(String id) async {
+    if (_acceptingWaitlistId != null) return;
+    setState(() => _acceptingWaitlistId = id);
+    try {
+      await ref.read(waitlistRepositoryProvider).accept(id);
+      ref.invalidate(waitlistProvider);
+      ref.invalidate(appointmentsProvider('upcoming'));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Appointment booked'
+                  : 'Запись создана',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(readableError(context, error))));
+      }
+    } finally {
+      if (mounted) setState(() => _acceptingWaitlistId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).value;
     final upcoming = ref.watch(appointmentsProvider('upcoming'));
     final waitlist = ref.watch(waitlistProvider);
@@ -55,26 +91,62 @@ class HomeScreen extends ConsumerWidget {
                       .firstOrNull;
                   if (matched == null) return const SizedBox.shrink();
                   return Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.notifications_active_rounded),
-                      title: Text(
-                        Localizations.localeOf(context).languageCode == 'en'
-                            ? 'A time slot is available'
-                            : 'Освободилось время',
-                      ),
-                      subtitle: Text(
-                        '${matched.serviceName ?? ''}\n${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(matched.matchedStartsAt!.toLocal())} · ${matched.employeeName ?? ''}',
-                      ),
-                      isThreeLine: true,
-                      trailing: FilledButton(
-                        onPressed: () async {
-                          await ref
-                              .read(waitlistRepositoryProvider)
-                              .accept(matched.id);
-                          ref.invalidate(waitlistProvider);
-                          ref.invalidate(appointmentsProvider('upcoming'));
-                        },
-                        child: Text(context.l10n.bookNow),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.notifications_active_rounded),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      Localizations.localeOf(context)
+                                                  .languageCode ==
+                                              'en'
+                                          ? 'A time slot is available'
+                                          : 'Освободилось время',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${matched.serviceName ?? ''}\n${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(matched.matchedStartsAt!.toLocal())} · ${matched.employeeName ?? ''}',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.icon(
+                              onPressed: _acceptingWaitlistId == null
+                                  ? () => _acceptWaitlist(matched.id)
+                                  : null,
+                              icon: _acceptingWaitlistId == matched.id
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.check_rounded),
+                              label: Text(
+                                _acceptingWaitlistId == matched.id
+                                    ? context.l10n.updating
+                                    : context.l10n.bookNow,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );

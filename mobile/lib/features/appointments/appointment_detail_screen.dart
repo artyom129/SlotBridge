@@ -69,7 +69,7 @@ class _AppointmentDetailScreenState
       }
       ref.invalidate(appointmentDetailProvider(widget.appointmentId));
     } catch (error) {
-      setState(() => _mutationError = error);
+      if (mounted) setState(() => _mutationError = error);
     } finally {
       reasonController.dispose();
       if (mounted) setState(() => _isMutating = false);
