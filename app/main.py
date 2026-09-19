@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import os
 from html import escape
+from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 
+from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, schedules, version, waitlist, ai
+from app.config import Settings, get_settings
 from app.core import DB, Service
+from app.dependencies import require_admin
+from app.models import User
+from app.webhook_security import verify_webhook
 
 load_dotenv()
 
@@ -21,12 +29,31 @@ configured = {
     "google": bool(os.getenv("GOOGLE_CALENDAR_ACCESS_TOKEN")),
 }
 svc = Service(db, configured)
+settings = get_settings()
 
 app = FastAPI(
     title="SlotBridge",
-    version="1.0.0",
-    description="Appointment synchronization control plane with webhook normalization, conflict detection and capability-aware planning.",
+    version="4.0.0",
+    description="Transactional booking, timezone-aware availability, and the preserved integration gateway.",
 )
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        expose_headers=["Idempotency-Replayed"],
+    )
+app.include_router(auth.router)
+app.include_router(domain.router)
+app.include_router(admin.router)
+app.include_router(schedules.router)
+app.include_router(appointment_api.router)
+app.include_router(health_api.router)
+app.include_router(version.router)
+app.include_router(waitlist.router)
+app.include_router(ai.router)
 
 STYLE = """
 body{margin:0;background:#071019;color:#eef4fb;font:14px system-ui}*{box-sizing:border-box}
@@ -51,7 +78,13 @@ def csv_download(rows: list[dict], filename: str) -> Response:
     if rows:
         writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(
+            {
+                key: f"'{value}" if isinstance(value, str) and value.startswith(("=", "+", "-", "@")) else value
+                for key, value in row.items()
+            }
+            for row in rows
+        )
     return Response(
         output.getvalue(),
         media_type="text/csv; charset=utf-8",
@@ -68,7 +101,7 @@ def page() -> str:
 
     rows = "".join(
         f"<div class='row'><span class='prov {'mb' if a['provider']=='mindbody' else 'vg' if a['provider']=='vagaro' else 'gg'}'>{h(a['provider'])}</span>"
-        f"<div><b>{h(a['client_name'] or 'Appointment')}</b><div class='muted'>{h(a['start_at'])} → {h(a['end_at'])}</div></div>"
+        f"<div><b>Appointment</b><div class='muted'>{h(a['start_at'])} → {h(a['end_at'])}</div></div>"
         f"<span style='margin-left:auto'>{h(a['status'])}</span></div>"
         for a in aps[:8]
     ) or "<p>No demo data yet. Run <code>python scripts/seed_demo.py</code>.</p>"
@@ -98,56 +131,97 @@ def health():
 
 
 @app.get("/api/appointments")
-def appointments():
-    return {"items": db.list("appointments")}
+def appointments(_admin: Annotated[User, Depends(require_admin)]):
+    return {"items": sanitized_appointments()}
 
 
 @app.get("/api/appointments.csv")
-def appointments_csv():
-    return csv_download(db.list("appointments"), "slotbridge-appointments.csv")
+def appointments_csv(_admin: Annotated[User, Depends(require_admin)]):
+    return csv_download(sanitized_appointments(), "slotbridge-appointments.csv")
 
 
 @app.get("/api/conflicts")
-def conflicts():
+def conflicts(_admin: Annotated[User, Depends(require_admin)]):
     return {"items": db.list("conflicts")}
 
 
 @app.get("/api/conflicts.csv")
-def conflicts_csv():
+def conflicts_csv(_admin: Annotated[User, Depends(require_admin)]):
     return csv_download(db.list("conflicts"), "slotbridge-conflicts.csv")
 
 
 @app.get("/api/feasibility")
-def feasibility():
+def feasibility(_admin: Annotated[User, Depends(require_admin)]):
     return svc.feasibility()
 
 
 @app.get("/api/sync-jobs")
-def sync_jobs():
+def sync_jobs(_admin: Annotated[User, Depends(require_admin)]):
     return {"items": db.list("sync_jobs")}
 
 
 @app.get("/api/dead-letters")
-def dead_letters():
+def dead_letters(_admin: Annotated[User, Depends(require_admin)]):
     return {"items": db.list("dead_letters")}
 
 
 @app.post("/webhooks/{provider}")
-async def webhook(provider: str, request: Request):
+async def webhook(
+    provider: str,
+    request: Request,
+    app_settings: Annotated[Settings, Depends(get_settings)],
+):
     if provider not in svc.adapters:
         raise HTTPException(404, "Unknown provider")
-    return svc.ingest(provider, await request.json())
+    body = await request.body()
+    if len(body) > 1_000_000:
+        raise HTTPException(413, "Webhook payload is too large")
+    verify_webhook(
+        provider,
+        body,
+        request.headers.get("X-SlotBridge-Signature"),
+        app_settings,
+    )
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise HTTPException(400, "Invalid JSON payload") from None
+    if not isinstance(payload, dict):
+        raise HTTPException(422, "Webhook payload must be a JSON object")
+    return svc.ingest(provider, payload)
 
 
 @app.post("/api/reconcile")
-def reconcile():
+def reconcile(_admin: Annotated[User, Depends(require_admin)]):
     return {"conflicts": svc.reconcile()}
 
 
 @app.post("/api/sync-plan/{appointment_id}")
-def plan(appointment_id: int, target: str = "google"):
+def plan(
+    appointment_id: int,
+    _admin: Annotated[User, Depends(require_admin)],
+    target: str = "google",
+):
     if target not in svc.adapters:
         raise HTTPException(404, "Unknown target")
     if not db.get_appointment(appointment_id):
         raise HTTPException(404, "Appointment not found")
     return {"job_id": svc.plan(appointment_id, target), "target": target}
+
+
+def sanitized_appointments() -> list[dict]:
+    safe_columns = {
+        "id",
+        "provider",
+        "external_id",
+        "start_at",
+        "end_at",
+        "client_name",
+        "staff_name",
+        "status",
+        "updated_at",
+    }
+    return [
+        {key: value for key, value in row.items() if key in safe_columns}
+        for row in db.list("appointments")
+    ]
