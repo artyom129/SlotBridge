@@ -28,6 +28,7 @@ from app.models import (
     UserRole,
 )
 from app.services.availability import AvailabilityError, AvailabilityService
+from app.services.waitlist import match_released_slot
 
 
 class BookingError(Exception):
@@ -300,6 +301,7 @@ class BookingService:
             old_ends_at=_as_utc(appointment.ends_at),
         )
         self._flush_action("CANCELLATION_CONFLICT")
+        match_released_slot(self.session, appointment, appointment.starts_at)
         return appointment
 
     def reschedule(
@@ -375,6 +377,7 @@ class BookingService:
                 "The appointment could not be rescheduled because related data changed",
                 409,
             ) from None
+        match_released_slot(self.session, appointment, old_start)
         return appointment
 
     def change_status(

@@ -12,7 +12,7 @@
   "errorNotFound": "Запрошенные данные не найдены.",
   "errorConflict": "Данные изменились. Обновите экран и попробуйте ещё раз.",
   "errorCheckData": "Проверьте введённые данные.",
-  "errorSlotUnavailable": "Это время уже занято. Выберите другой вариант.",
+  "errorSlotUnavailable": "Это время только что заняли. Но мы нашли ближайшие свободные варианты.",
   "errorBookingScope": "Для записи недоступен активный филиал.",
   "errorClientOnly": "Мобильное приложение предназначено для клиентов.",
   "errorNoActiveLocation": "Нет доступного филиала для записи.",
@@ -132,5 +132,8 @@
   "@availableTimesOnDate": {"placeholders": {"date": {"type": "String"}}},
   "noAvailableTimes": "Свободного времени нет. Выберите другую дату.",
   "confirmNewTime": "Подтвердить новое время",
-  "returnHome": "Вернуться на главную"
+  "returnHome": "Вернуться на главную",
+  "language": "Язык", "russian": "Русский", "english": "English", "theme": "Тема",
+  "editProfile": "Редактировать профиль", "waitlist": "Лист ожидания", "about": "О приложении", "version": "Версия", "save": "Сохранить",
+  "recommended": "Рекомендуем", "allAvailableTimes": "Все свободные времена", "bestOption": "Лучший вариант", "earliestAvailable": "Ближайшее время", "fillsGap": "Заполняет окно"
 }

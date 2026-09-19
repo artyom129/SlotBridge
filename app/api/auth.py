@@ -11,7 +11,7 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.dependencies import AuthenticatedUser
 from app.models import Organization, OrganizationMembership, User, UserRole
-from app.schemas import LoginRequest, RegisterRequest, TokenResponse, UserOut
+from app.schemas import LoginRequest, RegisterRequest, TokenResponse, UserOut, UserUpdateRequest
 from app.security import create_access_token, hash_password, verify_password
 
 
@@ -92,4 +92,14 @@ def login(
 
 @router.get("/me", response_model=UserOut)
 def me(user: AuthenticatedUser) -> User:
+    return user
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(payload: UserUpdateRequest, user: AuthenticatedUser, session: Annotated[Session, Depends(get_db)]) -> User:
+    user.first_name = payload.first_name.strip()
+    user.last_name = payload.last_name.strip()
+    user.phone = payload.phone.strip() if payload.phone else None
+    session.flush()
+    session.refresh(user)
     return user

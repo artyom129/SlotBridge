@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     public_demo_organization_slug: str = Field(default="slotbridge-demo", min_length=1)
     production_demo_seed_enabled: bool = False
     demo_password: SecretStr | None = Field(default=None, min_length=12)
+    ai_provider: Literal["gemini"] = "gemini"
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = Field(default="gemini-3.6-flash", pattern=r"^[a-zA-Z0-9._-]+$")
 
     allow_unsigned_demo_webhooks: bool = False
     mindbody_webhook_secret: SecretStr | None = Field(default=None, min_length=32)

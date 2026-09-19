@@ -102,6 +102,24 @@ class _AppointmentDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => context.go('/appointments'),
+                        child: Text(context.l10n.myAppointments),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => context.go('/home'),
+                        child: Text(context.l10n.navHome),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
               ],
               _AppointmentHero(appointment: appointment),
               const SizedBox(height: 16),
@@ -242,11 +260,14 @@ class _AppointmentHero extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            DateFormat('d MMMM, EEEE', 'ru').format(appointment.localStartsAt),
+            DateFormat(
+              'd MMMM, EEEE',
+              Localizations.localeOf(context).languageCode,
+            ).format(appointment.localStartsAt),
           ),
           const SizedBox(height: 4),
           Text(
-            '${DateFormat.Hm('ru').format(appointment.localStartsAt)} – ${DateFormat.Hm('ru').format(appointment.localEndsAt)}',
+            '${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(appointment.localStartsAt)} – ${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(appointment.localEndsAt)}',
             style: Theme.of(context).textTheme.titleLarge
                 ?.copyWith(fontWeight: FontWeight.w800),
           ),

@@ -126,7 +126,7 @@ class _BookingRepository implements BookingRepository {
 
 void main() {
   test(
-    'booking flow keeps one idempotency key across a failed mobile retry',
+    'conflict rescue refreshes availability and uses a new key for alternative',
     () async {
       final bookingRepository = _BookingRepository();
       final container = ProviderContainer(
@@ -145,14 +145,16 @@ void main() {
       controller.selectSlot(slot);
 
       expect(await controller.submit('Window seat'), isNull);
-      final keyAfterFailure = container
-          .read(bookingControllerProvider)
-          .idempotencyKey;
-      expect(keyAfterFailure, isNotNull);
+      final rescued = container.read(bookingControllerProvider);
+      expect(rescued.step, 3);
+      expect(rescued.availability, isNotNull);
+      expect(rescued.idempotencyKey, isNull);
 
+      controller.selectSlot(slot);
       final appointment = await controller.submit('Window seat');
       expect(appointment?.id, 'appointment');
-      expect(bookingRepository.keys, [keyAfterFailure, keyAfterFailure]);
+      expect(bookingRepository.keys, hasLength(2));
+      expect(bookingRepository.keys[0], isNot(bookingRepository.keys[1]));
     },
   );
 }

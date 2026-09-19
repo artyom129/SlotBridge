@@ -14,7 +14,7 @@ from app.config import get_settings  # noqa: E402
 from app.database import engine  # noqa: E402
 
 
-EXPECTED_REVISION = "20260915_0004"
+EXPECTED_REVISION = "20260919_0005"
 EXPECTED_CONSTRAINT = "ex_appointments_employee_time_active"
 
 

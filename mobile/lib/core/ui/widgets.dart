@@ -213,7 +213,9 @@ class AppointmentCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      DateFormat.MMM('ru').format(start).toUpperCase(),
+                      DateFormat.MMM(
+                        Localizations.localeOf(context).languageCode,
+                      ).format(start).toUpperCase(),
                       style: const TextStyle(fontSize: 11),
                     ),
                     Text(
@@ -244,7 +246,7 @@ class AppointmentCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '${DateFormat.Hm('ru').format(start)} · ${appointment.employee.name}',
+                      '${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(start)} · ${appointment.employee.name}',
                     ),
                     Text(
                       appointment.branch.name,

@@ -6,6 +6,9 @@ import '../../core/ui/widgets.dart';
 import '../../l10n/l10n.dart';
 import '../appointments/appointment_providers.dart';
 import '../auth/auth_controller.dart';
+import '../../core/providers.dart';
+
+import 'package:intl/intl.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -14,6 +17,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).value;
     final upcoming = ref.watch(appointmentsProvider('upcoming'));
+    final waitlist = ref.watch(waitlistProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('SlotBridge'),
@@ -41,6 +45,44 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(context.l10n.readyForVisit),
               const SizedBox(height: 22),
+              waitlist.when(
+                data: (items) {
+                  final matched = items
+                      .where(
+                        (x) =>
+                            x.status == 'MATCHED' && x.matchedStartsAt != null,
+                      )
+                      .firstOrNull;
+                  if (matched == null) return const SizedBox.shrink();
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.notifications_active_rounded),
+                      title: Text(
+                        Localizations.localeOf(context).languageCode == 'en'
+                            ? 'A time slot is available'
+                            : 'Освободилось время',
+                      ),
+                      subtitle: Text(
+                        '${matched.serviceName ?? ''}\n${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(matched.matchedStartsAt!.toLocal())} · ${matched.employeeName ?? ''}',
+                      ),
+                      isThreeLine: true,
+                      trailing: FilledButton(
+                        onPressed: () async {
+                          await ref
+                              .read(waitlistRepositoryProvider)
+                              .accept(matched.id);
+                          ref.invalidate(waitlistProvider);
+                          ref.invalidate(appointmentsProvider('upcoming'));
+                        },
+                        child: Text(context.l10n.bookNow),
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -85,6 +127,26 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 28),
+              Card(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(18),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.auto_awesome_rounded),
+                  ),
+                  title: const Text(
+                    'SlotBridge AI',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    Localizations.localeOf(context).languageCode == 'en'
+                        ? 'Manage bookings with a message'
+                        : 'Запишитесь обычным сообщением',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/ai'),
+                ),
+              ),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(

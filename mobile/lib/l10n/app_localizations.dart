@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_en.dart';
 import 'app_localizations_ru.dart';
 
 // ignore_for_file: type=lint
@@ -92,7 +93,10 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('ru')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('ru'),
+  ];
 
   /// No description provided for @appTitle.
   ///
@@ -169,7 +173,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorSlotUnavailable.
   ///
   /// In ru, this message translates to:
-  /// **'Это время уже занято. Выберите другой вариант.'**
+  /// **'Это время только что заняли. Но мы нашли ближайшие свободные варианты.'**
   String get errorSlotUnavailable;
 
   /// No description provided for @errorBookingScope.
@@ -861,6 +865,90 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Вернуться на главную'**
   String get returnHome;
+
+  /// No description provided for @language.
+  ///
+  /// In ru, this message translates to:
+  /// **'Язык'**
+  String get language;
+
+  /// No description provided for @russian.
+  ///
+  /// In ru, this message translates to:
+  /// **'Русский'**
+  String get russian;
+
+  /// No description provided for @english.
+  ///
+  /// In ru, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @theme.
+  ///
+  /// In ru, this message translates to:
+  /// **'Тема'**
+  String get theme;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In ru, this message translates to:
+  /// **'Редактировать профиль'**
+  String get editProfile;
+
+  /// No description provided for @waitlist.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лист ожидания'**
+  String get waitlist;
+
+  /// No description provided for @about.
+  ///
+  /// In ru, this message translates to:
+  /// **'О приложении'**
+  String get about;
+
+  /// No description provided for @version.
+  ///
+  /// In ru, this message translates to:
+  /// **'Версия'**
+  String get version;
+
+  /// No description provided for @save.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранить'**
+  String get save;
+
+  /// No description provided for @recommended.
+  ///
+  /// In ru, this message translates to:
+  /// **'Рекомендуем'**
+  String get recommended;
+
+  /// No description provided for @allAvailableTimes.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все свободные времена'**
+  String get allAvailableTimes;
+
+  /// No description provided for @bestOption.
+  ///
+  /// In ru, this message translates to:
+  /// **'Лучший вариант'**
+  String get bestOption;
+
+  /// No description provided for @earliestAvailable.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ближайшее время'**
+  String get earliestAvailable;
+
+  /// No description provided for @fillsGap.
+  ///
+  /// In ru, this message translates to:
+  /// **'Заполняет окно'**
+  String get fillsGap;
 }
 
 class _AppLocalizationsDelegate
@@ -874,7 +962,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['ru'].contains(locale.languageCode);
+      <String>['en', 'ru'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -883,6 +971,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
     case 'ru':
       return AppLocalizationsRu();
   }

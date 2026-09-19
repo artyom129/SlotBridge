@@ -34,7 +34,7 @@ def clean_domain_database():
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE TABLE appointment_audit_log, appointment_status_history, "
+                    "TRUNCATE TABLE waitlist_entries, appointment_audit_log, appointment_status_history, "
                     "appointments, organization_memberships, blocked_slots, "
                     "schedule_exceptions, schedule_breaks, "
                     "work_schedules, employee_services, employees, services, branches, "
@@ -49,7 +49,7 @@ def clean_domain_database():
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE TABLE appointment_audit_log, appointment_status_history, "
+                    "TRUNCATE TABLE waitlist_entries, appointment_audit_log, appointment_status_history, "
                     "appointments, organization_memberships, blocked_slots, "
                     "schedule_exceptions, schedule_breaks, "
                     "work_schedules, employee_services, employees, services, branches, "

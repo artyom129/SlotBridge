@@ -13,6 +13,11 @@ abstract interface class AuthRepository {
     String? phone,
   });
   Future<AppUser> currentUser();
+  Future<AppUser> updateProfile({
+    required String firstName,
+    required String lastName,
+    String? phone,
+  });
   Future<void> logout();
   Future<bool> hasSession();
 }
@@ -83,6 +88,23 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<AppUser> currentUser() async {
     final response = await _api.get('/auth/me');
+    return AppUser.fromJson(response as JsonMap);
+  }
+
+  @override
+  Future<AppUser> updateProfile({
+    required String firstName,
+    required String lastName,
+    String? phone,
+  }) async {
+    final response = await _api.patch(
+      '/auth/me',
+      data: {
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
+        'phone': phone?.trim(),
+      },
+    );
     return AppUser.fromJson(response as JsonMap);
   }
 

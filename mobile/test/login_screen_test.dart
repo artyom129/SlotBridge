@@ -10,6 +10,12 @@ import 'package:slotbridge_mobile/l10n/app_localizations.dart';
 
 class _FakeAuthRepository implements AuthRepository {
   @override
+  Future<AppUser> updateProfile({
+    required String firstName,
+    required String lastName,
+    String? phone,
+  }) => throw UnimplementedError();
+  @override
   Future<bool> hasSession() async => false;
 
   @override

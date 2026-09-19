@@ -138,7 +138,10 @@ class _RescheduleScreenState extends ConsumerState<RescheduleScreen> {
                     _date == null
                         ? context.l10n.availableTimes
                         : context.l10n.availableTimesOnDate(
-                            DateFormat('d MMM y', 'ru').format(_date!),
+                            DateFormat(
+                              'd MMM y',
+                              Localizations.localeOf(context).languageCode,
+                            ).format(_date!),
                           ),
                     style: Theme.of(context).textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.w800),
@@ -156,7 +159,9 @@ class _RescheduleScreenState extends ConsumerState<RescheduleScreen> {
                           .map(
                             (slot) => ChoiceChip(
                               label: Text(
-                                DateFormat.Hm('ru').format(slot.localStart),
+                                DateFormat.Hm(
+                                  Localizations.localeOf(context).languageCode,
+                                ).format(slot.localStart),
                               ),
                               selected: _slot?.start == slot.start,
                               onSelected: (_) => setState(() => _slot = slot),

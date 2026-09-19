@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -15,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.models import AppointmentAuditAction, AppointmentStatus, UserRole
+from app.models import AppointmentAuditAction, AppointmentStatus, UserRole, WaitlistStatus
 
 
 class ORMModel(BaseModel):
@@ -63,6 +64,12 @@ class UserOut(ORMModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserUpdateRequest(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=32)
 
 
 class TokenResponse(BaseModel):
@@ -269,6 +276,49 @@ class AvailabilityResponse(BaseModel):
     service_duration_minutes: int
     slot_interval_minutes: int
     slots: list[AvailabilitySlot]
+    recommendations: list["RecommendedSlot"] = []
+
+
+class RecommendedSlot(AvailabilitySlot):
+    reason: Literal["BEST_FIT", "EARLIEST", "FILL_GAP"]
+
+
+class WaitlistCreateRequest(BaseModel):
+    branch_id: UUID
+    service_id: UUID
+    employee_id: UUID | None = None
+    preferred_date: date
+    preferred_start_time: time
+    preferred_end_time: time
+
+    @model_validator(mode="after")
+    def validate_interval(self):
+        if self.preferred_start_time >= self.preferred_end_time:
+            raise ValueError("preferred_start_time must be before preferred_end_time")
+        return self
+
+
+class WaitlistOut(ORMModel):
+    id: UUID
+    organization_id: UUID
+    client_user_id: UUID
+    branch_id: UUID
+    service_id: UUID
+    employee_id: UUID | None
+    preferred_date: date
+    preferred_start_time: time
+    preferred_end_time: time
+    status: WaitlistStatus
+    matched_employee_id: UUID | None
+    matched_starts_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    service_name: str | None = None
+    employee_name: str | None = None
+
+
+class WaitlistListResponse(BaseModel):
+    items: list[WaitlistOut]
 
 
 class AppointmentCreateRequest(BaseModel):

@@ -300,8 +300,79 @@ class _AvailabilityStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (state.error != null && state.slot != null) ...[
+          FilledButton.icon(
+            onPressed: () async {
+              final ok = await ref
+                  .read(bookingControllerProvider.notifier)
+                  .joinWaitlist();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ok
+                          ? (Localizations.localeOf(context).languageCode ==
+                                    'en'
+                                ? 'Added to waitlist'
+                                : 'Добавлено в лист ожидания')
+                          : (Localizations.localeOf(context).languageCode ==
+                                    'en'
+                                ? 'Could not join waitlist'
+                                : 'Не удалось добавить в лист ожидания'),
+                    ),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: Text(
+              Localizations.localeOf(context).languageCode == 'en'
+                  ? 'Notify me if it becomes available'
+                  : 'Сообщить, если освободится',
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (availability.recommendations.isNotEmpty) ...[
+          Text(
+            context.l10n.recommended,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          ...availability.recommendations.map(
+            (item) => Card(
+              child: ListTile(
+                leading: const Icon(Icons.star_rounded),
+                title: Text(
+                  DateFormat.Hm(Localizations.localeOf(context).languageCode)
+                      .format(item.slot.localStart),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: Text(switch (item.reason) {
+                  'FILL_GAP' => context.l10n.fillsGap,
+                  'EARLIEST' => context.l10n.earliestAvailable,
+                  _ => context.l10n.bestOption,
+                }),
+                onTap: () => ref
+                    .read(bookingControllerProvider.notifier)
+                    .selectSlot(item.slot),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            context.l10n.allAvailableTimes,
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+        ],
         Text(
-          DateFormat('d MMMM, EEEE', 'ru').format(state.date!),
+          DateFormat(
+            'd MMMM, EEEE',
+            Localizations.localeOf(context).languageCode,
+          ).format(state.date!),
           style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
@@ -316,7 +387,10 @@ class _AvailabilityStep extends ConsumerWidget {
                 (slot) => ActionChip(
                   key: ValueKey('slot-${slot.start.toIso8601String()}'),
                   avatar: const Icon(Icons.schedule_rounded, size: 18),
-                  label: Text(DateFormat.Hm('ru').format(slot.localStart)),
+                  label: Text(
+                    DateFormat.Hm(Localizations.localeOf(context).languageCode)
+                        .format(slot.localStart),
+                  ),
                   onPressed: () => ref
                       .read(bookingControllerProvider.notifier)
                       .selectSlot(slot),
@@ -359,13 +433,16 @@ class _ReviewStep extends ConsumerWidget {
                 _SummaryRow(
                   icon: Icons.calendar_today_outlined,
                   label: context.l10n.dateLabel,
-                  value: DateFormat('d MMMM y', 'ru').format(slot.localStart),
+                  value: DateFormat(
+                    'd MMMM y',
+                    Localizations.localeOf(context).languageCode,
+                  ).format(slot.localStart),
                 ),
                 _SummaryRow(
                   icon: Icons.schedule_rounded,
                   label: context.l10n.timeLabel,
                   value:
-                      '${DateFormat.Hm('ru').format(slot.localStart)} – ${DateFormat.Hm('ru').format(slot.localEnd)}',
+                      '${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(slot.localStart)} – ${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(slot.localEnd)}',
                 ),
                 _SummaryRow(
                   icon: Icons.place_outlined,

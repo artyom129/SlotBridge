@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.schemas import (
     AvailabilityResponse,
+    RecommendedSlot,
     AvailabilitySlot,
     BlockedSlotCreate,
     BlockedSlotOut,
@@ -31,6 +32,7 @@ from app.schemas import (
     WorkScheduleOut,
 )
 from app.services.availability import AvailabilityError, AvailabilityService
+from app.services.recommendations import recommend_slots
 from app.services.scheduling import (
     SchedulingError,
     ensure_exception_compatibility,
@@ -86,12 +88,14 @@ def get_availability(
         ).calculate(branch_id, employee_id, service_id, local_date)
     except AvailabilityError as error:
         raise _domain_error(error) from None
+    recommendations = recommend_slots(session, employee_id, result)
     return AvailabilityResponse(
         date=result.local_date,
         timezone=result.timezone_name,
         service_duration_minutes=result.service_duration_minutes,
         slot_interval_minutes=result.slot_interval_minutes,
         slots=[AvailabilitySlot(start=item.start, end=item.end) for item in result.slots],
+        recommendations=[RecommendedSlot(start=item.start, end=item.end, reason=item.reason) for item in recommendations],
     )
 
 

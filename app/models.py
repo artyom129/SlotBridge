@@ -54,6 +54,14 @@ class AppointmentAuditAction(str, Enum):
     STATUS_CHANGED = "STATUS_CHANGED"
 
 
+class WaitlistStatus(str, Enum):
+    WAITING = "WAITING"
+    MATCHED = "MATCHED"
+    ACCEPTED = "ACCEPTED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+
+
 OCCUPYING_APPOINTMENT_STATUSES = (
     AppointmentStatus.BOOKED,
     AppointmentStatus.CONFIRMED,
@@ -608,6 +616,29 @@ class Appointment(TimestampMixin, Base):
         passive_deletes=True,
         order_by="AppointmentAuditLog.created_at",
     )
+
+
+class WaitlistEntry(TimestampMixin, Base):
+    __tablename__ = "waitlist_entries"
+    __table_args__ = (
+        CheckConstraint("preferred_start_time < preferred_end_time", name="ck_waitlist_preferred_time_order"),
+        ForeignKeyConstraint(["branch_id", "organization_id"], ["branches.id", "branches.organization_id"], name="fk_waitlist_branch_org"),
+        ForeignKeyConstraint(["service_id", "organization_id"], ["services.id", "services.organization_id"], name="fk_waitlist_service_org"),
+        ForeignKeyConstraint(["client_user_id", "organization_id"], ["organization_memberships.user_id", "organization_memberships.organization_id"], name="fk_waitlist_client_membership"),
+        Index("ix_waitlist_match", "organization_id", "branch_id", "preferred_date", "status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    client_user_id: Mapped[UUID] = mapped_column(nullable=False)
+    branch_id: Mapped[UUID] = mapped_column(nullable=False)
+    service_id: Mapped[UUID] = mapped_column(nullable=False)
+    employee_id: Mapped[UUID | None] = mapped_column(ForeignKey("employees.id"))
+    preferred_date: Mapped[date] = mapped_column(Date, nullable=False)
+    preferred_start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    preferred_end_time: Mapped[time] = mapped_column(Time, nullable=False)
+    status: Mapped[WaitlistStatus] = mapped_column(SAEnum(WaitlistStatus, name="waitlist_status", validate_strings=True), nullable=False, default=WaitlistStatus.WAITING)
+    matched_employee_id: Mapped[UUID | None] = mapped_column(ForeignKey("employees.id"))
+    matched_starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AppointmentStatusHistory(Base):

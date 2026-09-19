@@ -50,7 +50,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get errorSlotUnavailable =>
-      'Это время уже занято. Выберите другой вариант.';
+      'Это время только что заняли. Но мы нашли ближайшие свободные варианты.';
 
   @override
   String get errorBookingScope => 'Для записи недоступен активный филиал.';
@@ -416,4 +416,46 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get returnHome => 'Вернуться на главную';
+
+  @override
+  String get language => 'Язык';
+
+  @override
+  String get russian => 'Русский';
+
+  @override
+  String get english => 'English';
+
+  @override
+  String get theme => 'Тема';
+
+  @override
+  String get editProfile => 'Редактировать профиль';
+
+  @override
+  String get waitlist => 'Лист ожидания';
+
+  @override
+  String get about => 'О приложении';
+
+  @override
+  String get version => 'Версия';
+
+  @override
+  String get save => 'Сохранить';
+
+  @override
+  String get recommended => 'Рекомендуем';
+
+  @override
+  String get allAvailableTimes => 'Все свободные времена';
+
+  @override
+  String get bestOption => 'Лучший вариант';
+
+  @override
+  String get earliestAvailable => 'Ближайшее время';
+
+  @override
+  String get fillsGap => 'Заполняет окно';
 }

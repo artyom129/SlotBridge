@@ -21,6 +21,7 @@ class AppUser {
     required this.firstName,
     required this.lastName,
     required this.role,
+    this.phone,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class AppUser {
   final String firstName;
   final String lastName;
   final String role;
+  final String? phone;
 
   String get displayName => '$firstName $lastName'.trim();
 
@@ -37,6 +39,7 @@ class AppUser {
     firstName: json['first_name'] as String,
     lastName: json['last_name'] as String,
     role: json['role'] as String,
+    phone: json['phone'] as String?,
   );
 }
 
@@ -169,18 +172,30 @@ class AvailabilitySlot {
   }
 }
 
+class RecommendedSlot {
+  const RecommendedSlot({required this.slot, required this.reason});
+  final AvailabilitySlot slot;
+  final String reason;
+  factory RecommendedSlot.fromJson(JsonMap json) => RecommendedSlot(
+    slot: AvailabilitySlot.fromJson(json),
+    reason: json['reason'] as String,
+  );
+}
+
 class Availability {
   const Availability({
     required this.date,
     required this.timezone,
     required this.serviceDurationMinutes,
     required this.slots,
+    this.recommendations = const [],
   });
 
   final DateTime date;
   final String timezone;
   final int serviceDurationMinutes;
   final List<AvailabilitySlot> slots;
+  final List<RecommendedSlot> recommendations;
 
   factory Availability.fromJson(JsonMap json) => Availability(
     date: DateTime.parse(json['date'] as String),
@@ -188,6 +203,9 @@ class Availability {
     serviceDurationMinutes: json['service_duration_minutes'] as int,
     slots: (json['slots'] as List<dynamic>)
         .map((item) => AvailabilitySlot.fromJson(item as JsonMap))
+        .toList(growable: false),
+    recommendations: ((json['recommendations'] as List<dynamic>?) ?? const [])
+        .map((item) => RecommendedSlot.fromJson(item as JsonMap))
         .toList(growable: false),
   );
 }
@@ -297,4 +315,26 @@ class CatalogBootstrap {
   final Organization organization;
   final Branch branch;
   final List<Service> services;
+}
+
+class WaitlistItem {
+  const WaitlistItem({
+    required this.id,
+    required this.status,
+    required this.serviceName,
+    required this.employeeName,
+    required this.matchedStartsAt,
+  });
+  final String id, status;
+  final String? serviceName, employeeName;
+  final DateTime? matchedStartsAt;
+  factory WaitlistItem.fromJson(JsonMap json) => WaitlistItem(
+    id: json['id'] as String,
+    status: json['status'] as String,
+    serviceName: json['service_name'] as String?,
+    employeeName: json['employee_name'] as String?,
+    matchedStartsAt: json['matched_starts_at'] == null
+        ? null
+        : DateTime.parse(json['matched_starts_at'] as String),
+  );
 }

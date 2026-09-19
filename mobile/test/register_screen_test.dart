@@ -13,6 +13,12 @@ import 'package:slotbridge_mobile/features/home/home_screen.dart';
 import 'package:slotbridge_mobile/l10n/app_localizations.dart';
 
 class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<AppUser> updateProfile({
+    required String firstName,
+    required String lastName,
+    String? phone,
+  }) => throw UnimplementedError();
   _FakeAuthRepository({this.registerError});
 
   final Object? registerError;

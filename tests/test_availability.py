@@ -432,12 +432,17 @@ def test_availability_api_is_authenticated_and_returns_exact_schema(client, sess
         "timezone": "Asia/Almaty",
         "service_duration_minutes": 30,
         "slot_interval_minutes": 15,
-        "slots": [
+            "slots": [
             {"start": "2026-09-21T09:00:00+05:00", "end": "2026-09-21T09:30:00+05:00"},
             {"start": "2026-09-21T09:15:00+05:00", "end": "2026-09-21T09:45:00+05:00"},
-            {"start": "2026-09-21T09:30:00+05:00", "end": "2026-09-21T10:00:00+05:00"},
-        ],
-    }
+                {"start": "2026-09-21T09:30:00+05:00", "end": "2026-09-21T10:00:00+05:00"},
+            ],
+            "recommendations": [
+                {"start": "2026-09-21T09:00:00+05:00", "end": "2026-09-21T09:30:00+05:00", "reason": "EARLIEST"},
+                {"start": "2026-09-21T09:15:00+05:00", "end": "2026-09-21T09:45:00+05:00", "reason": "BEST_FIT"},
+                {"start": "2026-09-21T09:30:00+05:00", "end": "2026-09-21T10:00:00+05:00", "reason": "BEST_FIT"},
+            ],
+        }
 
 
 def test_query_count_is_constant_instead_of_per_generated_slot(session):

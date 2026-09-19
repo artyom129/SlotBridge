@@ -206,19 +206,57 @@ class BookingController extends Notifier<BookingState> {
       state = const BookingState();
       return appointment;
     } catch (error) {
+      Availability? freshAvailability;
+      try {
+        freshAvailability = await ref
+            .read(bookingRepositoryProvider)
+            .availability(
+              branchId: catalog.branch.id,
+              employeeId: employee.id,
+              serviceId: service.id,
+              date: state.date!,
+            );
+      } catch (_) {}
       state = BookingState(
-        step: 4,
+        step: 3,
         catalog: catalog,
         service: service,
         employees: state.employees,
         employee: employee,
         date: state.date,
-        availability: state.availability,
+        availability: freshAvailability ?? state.availability,
         slot: slot,
-        idempotencyKey: key,
         error: error,
       );
       return null;
+    }
+  }
+
+  Future<bool> joinWaitlist() async {
+    final catalog = state.catalog;
+    final service = state.service;
+    final employee = state.employee;
+    final slot = state.slot;
+    if (catalog == null ||
+        service == null ||
+        employee == null ||
+        slot == null) {
+      return false;
+    }
+    try {
+      await ref
+          .read(waitlistRepositoryProvider)
+          .create(
+            branchId: catalog.branch.id,
+            serviceId: service.id,
+            employeeId: employee.id,
+            start: slot.localStart,
+            end: slot.localEnd,
+          );
+      ref.invalidate(waitlistProvider);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
