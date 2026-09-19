@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/locale_controller.dart';
+import '../../core/providers.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/ui/widgets.dart';
 import '../../l10n/l10n.dart';
@@ -64,13 +65,21 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
     if (save == true) {
-      await ref
-          .read(authControllerProvider.notifier)
-          .updateProfile(
-            firstName: first.text,
-            lastName: last.text,
-            phone: phone.text,
+      try {
+        await ref
+            .read(authControllerProvider.notifier)
+            .updateProfile(
+              firstName: first.text.trim(),
+              lastName: last.text.trim(),
+              phone: phone.text.trim(),
+            );
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(readableError(context, error))),
           );
+        }
+      }
     }
     first.dispose();
     last.dispose();
@@ -102,10 +111,18 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       user?.displayName ?? context.l10n.client,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleLarge
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                    Text(user?.email ?? ''),
+                    Text(
+                      user?.email ?? '',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 6),
                     Chip(label: Text(context.l10n.client)),
                   ],
@@ -160,11 +177,21 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.hourglass_top_rounded),
                     title: Text(context.l10n.waitlist),
+                    subtitle: Text(
+                      locale.languageCode == 'en'
+                          ? 'Available matches appear on Home'
+                          : 'Доступные варианты появляются на главной',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      ref.invalidate(waitlistProvider);
+                      context.go('/home');
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.info_outline_rounded),
                     title: Text(context.l10n.about),
-                    subtitle: Text('${context.l10n.version} 1.1.0 (4)'),
+                    subtitle: Text('${context.l10n.version} 1.1.1 (5)'),
                   ),
                 ],
               ),

@@ -66,15 +66,20 @@ class AuthController extends AsyncNotifier<AppUser?> {
     required String lastName,
     String? phone,
   }) async {
-    state = await AsyncValue.guard(
-      () => ref
+    final previous = state.value;
+    try {
+      final updated = await ref
           .read(authRepositoryProvider)
           .updateProfile(
             firstName: firstName,
             lastName: lastName,
             phone: phone,
-          ),
-    );
+          );
+      state = AsyncData(updated);
+    } catch (error, stackTrace) {
+      state = AsyncData(previous);
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   Future<void> logout() async {

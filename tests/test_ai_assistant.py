@@ -44,5 +44,11 @@ def test_ai_hallucinated_slot_is_rejected_by_booking_service(client, session, mo
 
 def test_ai_without_key_fails_open(client, session):
     domain = create_booking_domain(session)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        database_url='sqlite+pysqlite:///:memory:',
+        jwt_secret='test-only-jwt-secret-with-at-least-32-characters',
+        slotbridge_environment='test',
+        gemini_api_key=None,
+    )
     response = client.post('/ai/chat', headers=auth_headers(client, domain.client_a), json={'message':'Найди время'})
     assert response.status_code == 503
