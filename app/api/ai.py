@@ -108,8 +108,9 @@ def confirm(payload: ConfirmRequest, client: Annotated[User, Depends(require_cli
     raise HTTPException(422, detail={"code": "AI_ACTION_REJECTED", "message": "Unsupported action"})
 
 
-def _gemini(settings, system, contents):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
+def _gemini(settings, system, contents, *, _model=None):
+    model = _model or settings.gemini_model
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     request_json = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}
     timeout = httpx.Timeout(40.0, connect=10.0)
     for attempt in range(1, 4):
@@ -121,7 +122,7 @@ def _gemini(settings, system, contents):
                 timeout=timeout,
             )
         except httpx.TimeoutException:
-            _log_gemini_failure(settings, "timeout", attempt=attempt)
+            _log_gemini_failure(settings, "timeout", attempt=attempt, model=model)
             if attempt < 2:
                 time_module.sleep(0.5)
                 continue
@@ -133,7 +134,7 @@ def _gemini(settings, system, contents):
                 },
             ) from None
         except httpx.RequestError:
-            _log_gemini_failure(settings, "network", attempt=attempt)
+            _log_gemini_failure(settings, "network", attempt=attempt, model=model)
             if attempt < 2:
                 time_module.sleep(0.5)
                 continue
@@ -153,7 +154,26 @@ def _gemini(settings, system, contents):
                 category,
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
+            if (
+                status == 429
+                and model == settings.gemini_model
+                and settings.gemini_fallback_model != model
+            ):
+                _log_gemini_failure(
+                    settings,
+                    "rate_limit_fallback",
+                    upstream_status=status,
+                    attempt=attempt,
+                    model=settings.gemini_fallback_model,
+                )
+                return _gemini(
+                    settings,
+                    system,
+                    contents,
+                    _model=settings.gemini_fallback_model,
+                )
             retry_limit = 3 if status == 429 else 2
             if attempt < retry_limit:
                 time_module.sleep(_gemini_retry_delay(response, attempt))
@@ -176,6 +196,7 @@ def _gemini(settings, system, contents):
                 "authentication",
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
             raise HTTPException(
                 503,
@@ -190,6 +211,7 @@ def _gemini(settings, system, contents):
                 "model",
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
             raise HTTPException(
                 503,
@@ -204,6 +226,7 @@ def _gemini(settings, system, contents):
                 "request_rejected",
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
             raise HTTPException(
                 502,
@@ -221,6 +244,7 @@ def _gemini(settings, system, contents):
                 "invalid_json",
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
             raise HTTPException(
                 502,
@@ -235,6 +259,7 @@ def _gemini(settings, system, contents):
                 "invalid_shape",
                 upstream_status=status,
                 attempt=attempt,
+                model=model,
             )
             raise HTTPException(
                 502,
@@ -293,13 +318,14 @@ def _log_gemini_failure(
     *,
     upstream_status=None,
     attempt,
+    model=None,
 ):
     logger.warning(
         "ai_provider_failure category=%s upstream_status=%s attempt=%s model=%s",
         category,
         upstream_status,
         attempt,
-        settings.gemini_model,
+        model or settings.gemini_model,
     )
 
 

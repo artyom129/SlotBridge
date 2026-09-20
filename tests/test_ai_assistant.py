@@ -9,7 +9,18 @@ from app.main import app
 from tests.booking_support import auth_headers, create_booking_domain
 
 def _settings():
-    return Settings(database_url='sqlite+pysqlite:///:memory:', jwt_secret='test-only-jwt-secret-with-at-least-32-characters', slotbridge_environment='test', gemini_api_key='demo-key-never-sent')
+    return _settings_with()
+
+
+def _settings_with(**overrides):
+    values = {
+        "database_url": "sqlite+pysqlite:///:memory:",
+        "jwt_secret": "test-only-jwt-secret-with-at-least-32-characters",
+        "slotbridge_environment": "test",
+        "gemini_api_key": "demo-key-never-sent",
+    }
+    values.update(overrides)
+    return Settings(**values)
 
 def test_ai_uses_whitelisted_tool_and_minimal_context(client, session, monkeypatch):
     domain = create_booking_domain(session)
@@ -117,7 +128,11 @@ def test_gemini_status_is_not_collapsed(
     monkeypatch.setattr(ai.httpx, "post", fake_post)
     monkeypatch.setattr(ai.time_module, "sleep", lambda _seconds: None)
     with pytest.raises(ai.HTTPException) as raised:
-        ai._gemini(_settings(), "safe system", [{"role": "user", "parts": [{"text": "hello"}]}])
+        ai._gemini(
+            _settings_with(gemini_fallback_model="gemini-3.6-flash"),
+            "safe system",
+            [{"role": "user", "parts": [{"text": "hello"}]}],
+        )
     assert calls == expected_attempts
     assert raised.value.detail["code"] == expected_code
 
@@ -160,13 +175,36 @@ def test_gemini_rate_limit_respects_provider_retry_delay(monkeypatch):
     monkeypatch.setattr(ai.time_module, "sleep", delays.append)
 
     result = ai._gemini(
-        _settings(),
+        _settings_with(gemini_fallback_model="gemini-3.6-flash"),
         "safe system",
         [{"role": "user", "parts": [{"text": "hello"}]}],
     )
 
     assert result == _valid_response()
     assert delays == [7.0]
+
+
+def test_gemini_rate_limit_falls_back_to_free_stable_model(monkeypatch):
+    urls = []
+    responses = [
+        _gemini_response(429, {"error": {"status": "RESOURCE_EXHAUSTED"}}),
+        _gemini_response(200, _valid_response("Fallback works")),
+    ]
+
+    def fake_post(url, **_kwargs):
+        urls.append(url)
+        return responses.pop(0)
+
+    monkeypatch.setattr(ai.httpx, "post", fake_post)
+    result = ai._gemini(
+        _settings(),
+        "safe system",
+        [{"role": "user", "parts": [{"text": "hello"}]}],
+    )
+
+    assert result == _valid_response("Fallback works")
+    assert "gemini-3.6-flash" in urls[0]
+    assert "gemini-2.5-flash-lite" in urls[1]
 
 
 def test_gemini_logs_only_safe_failure_metadata(monkeypatch, caplog):
