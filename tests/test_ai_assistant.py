@@ -204,7 +204,7 @@ def test_gemini_rate_limit_falls_back_to_free_stable_model(monkeypatch):
 
     assert result == _valid_response("Fallback works")
     assert "gemini-3.6-flash" in urls[0]
-    assert "gemini-2.5-flash-lite" in urls[1]
+    assert "gemini-3.5-flash-lite" in urls[1]
 
 
 def test_gemini_logs_only_safe_failure_metadata(monkeypatch, caplog):
