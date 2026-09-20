@@ -164,6 +164,44 @@ def test_ai_rejects_stale_slot_selection_before_calling_gemini(
     assert calls == 0
 
 
+def test_ai_journey_selection_is_deterministic_and_never_mutates(
+    client, session, monkeypatch
+):
+    domain = create_booking_domain(session)
+    app.dependency_overrides[get_settings] = _settings
+    calls = 0
+
+    def fake(*_args):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("Gemini must not run for an already selected journey")
+
+    monkeypatch.setattr(ai, "_gemini", fake)
+    response = client.post(
+        "/ai/chat",
+        headers=auth_headers(client, domain.client_a),
+        json={
+            "message": "Маршрут выбран",
+            "locale": "ru",
+            "state": {
+                "intent": "MULTI_SERVICE_JOURNEY",
+                "services": ["Service A", "Service B"],
+                "date": "2099-01-05",
+            },
+            "selection": {
+                "type": "journey",
+                "value": "FASTEST",
+                "label": "FASTEST",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["state"]["selected_journey"] == "FASTEST"
+    assert "confirmation_token" not in response.json()
+    assert calls == 0
+
+
 def test_ai_rejects_unknown_tool(client, session, monkeypatch):
     domain = create_booking_domain(session)
     app.dependency_overrides[get_settings] = _settings
