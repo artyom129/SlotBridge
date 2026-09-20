@@ -1,3 +1,8 @@
+import logging
+
+import httpx
+import pytest
+
 import app.api.ai as ai
 from app.config import Settings, get_settings
 from app.main import app
@@ -52,3 +57,103 @@ def test_ai_without_key_fails_open(client, session):
     )
     response = client.post('/ai/chat', headers=auth_headers(client, domain.client_a), json={'message':'Найди время'})
     assert response.status_code == 503
+
+
+def _gemini_response(status_code, payload):
+    return httpx.Response(
+        status_code,
+        request=httpx.Request("POST", "https://generativelanguage.googleapis.com"),
+        json=payload,
+    )
+
+
+def _valid_response(text="OK"):
+    return {"candidates": [{"content": {"role": "model", "parts": [{"text": text}]}}]}
+
+
+def test_gemini_timeout_retries_then_succeeds(monkeypatch):
+    calls = 0
+
+    def fake_post(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise httpx.ReadTimeout(
+                "temporary timeout",
+                request=httpx.Request("POST", "https://generativelanguage.googleapis.com"),
+            )
+        return _gemini_response(200, _valid_response())
+
+    monkeypatch.setattr(ai.httpx, "post", fake_post)
+    monkeypatch.setattr(ai.time_module, "sleep", lambda _seconds: None)
+    result = ai._gemini(_settings(), "safe system", [{"role": "user", "parts": [{"text": "hello"}]}])
+    assert calls == 2
+    assert result == _valid_response()
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_code", "expected_attempts"),
+    [
+        (429, "AI_GEMINI_RATE_LIMIT", 2),
+        (503, "AI_GEMINI_UNAVAILABLE", 2),
+        (403, "AI_GEMINI_AUTH", 1),
+        (404, "AI_GEMINI_MODEL_UNAVAILABLE", 1),
+        (400, "AI_GEMINI_REQUEST_REJECTED", 1),
+    ],
+)
+def test_gemini_status_is_not_collapsed(
+    monkeypatch,
+    status_code,
+    expected_code,
+    expected_attempts,
+):
+    calls = 0
+
+    def fake_post(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return _gemini_response(status_code, {"error": {"status": "safe"}})
+
+    monkeypatch.setattr(ai.httpx, "post", fake_post)
+    monkeypatch.setattr(ai.time_module, "sleep", lambda _seconds: None)
+    with pytest.raises(ai.HTTPException) as raised:
+        ai._gemini(_settings(), "safe system", [{"role": "user", "parts": [{"text": "hello"}]}])
+    assert calls == expected_attempts
+    assert raised.value.detail["code"] == expected_code
+
+
+def test_gemini_invalid_response_is_classified(monkeypatch):
+    monkeypatch.setattr(
+        ai.httpx,
+        "post",
+        lambda *_args, **_kwargs: _gemini_response(200, {"candidates": []}),
+    )
+    with pytest.raises(ai.HTTPException) as raised:
+        ai._gemini(_settings(), "safe system", [{"role": "user", "parts": [{"text": "hello"}]}])
+    assert raised.value.status_code == 502
+    assert raised.value.detail["code"] == "AI_INVALID_RESPONSE"
+
+
+def test_gemini_logs_only_safe_failure_metadata(monkeypatch, caplog):
+    monkeypatch.setattr(
+        ai.httpx,
+        "post",
+        lambda *_args, **_kwargs: _gemini_response(403, {"error": {"message": "secret upstream body"}}),
+    )
+    with caplog.at_level(logging.WARNING, logger="slotbridge.ai"):
+        with pytest.raises(ai.HTTPException):
+            ai._gemini(_settings(), "private system", [{"role": "user", "parts": [{"text": "private user text"}]}])
+    assert "category=authentication" in caplog.text
+    assert "upstream_status=403" in caplog.text
+    assert "demo-key-never-sent" not in caplog.text
+    assert "private system" not in caplog.text
+    assert "private user text" not in caplog.text
+    assert "secret upstream body" not in caplog.text
+
+
+def test_ai_auth_error_is_not_reported_as_provider_outage(client):
+    response = client.post(
+        "/ai/chat",
+        json={"message": "Найди время", "locale": "ru", "state": {}},
+    )
+    assert response.status_code == 401

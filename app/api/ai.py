@@ -4,6 +4,8 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
+import time as time_module
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any
 from uuid import UUID, uuid4
@@ -25,6 +27,7 @@ from app.services.booking import BookingError, BookingService
 from app.services.recommendations import recommend_slots
 
 router = APIRouter(prefix="/ai", tags=["ai-assistant"])
+logger = logging.getLogger("slotbridge.ai")
 
 
 class ChatRequest(BaseModel):
@@ -106,12 +109,171 @@ def confirm(payload: ConfirmRequest, client: Annotated[User, Depends(require_cli
 
 
 def _gemini(settings, system, contents):
-    try:
-        response = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent", headers={"x-goog-api-key": settings.gemini_api_key.get_secret_value()}, json={"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}, timeout=20)
-        response.raise_for_status()
-        return response.json()
-    except Exception:
-        raise HTTPException(503, detail={"code": "AI_UNAVAILABLE", "message": "AI Assistant is temporarily unavailable"}) from None
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
+    request_json = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}
+    timeout = httpx.Timeout(40.0, connect=10.0)
+    for attempt in range(1, 3):
+        try:
+            response = httpx.post(
+                url,
+                headers={"x-goog-api-key": settings.gemini_api_key.get_secret_value()},
+                json=request_json,
+                timeout=timeout,
+            )
+        except httpx.TimeoutException:
+            _log_gemini_failure(settings, "timeout", attempt=attempt)
+            if attempt < 2:
+                time_module.sleep(0.5)
+                continue
+            raise HTTPException(
+                504,
+                detail={
+                    "code": "AI_GEMINI_TIMEOUT",
+                    "message": "Gemini did not respond in time",
+                },
+            ) from None
+        except httpx.RequestError:
+            _log_gemini_failure(settings, "network", attempt=attempt)
+            if attempt < 2:
+                time_module.sleep(0.5)
+                continue
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_NETWORK",
+                    "message": "Gemini is temporarily unreachable",
+                },
+            ) from None
+
+        status = response.status_code
+        if status == 429 or status >= 500:
+            category = "rate_limit" if status == 429 else "upstream"
+            _log_gemini_failure(
+                settings,
+                category,
+                upstream_status=status,
+                attempt=attempt,
+            )
+            if attempt < 2:
+                time_module.sleep(0.5)
+                continue
+            code = (
+                "AI_GEMINI_RATE_LIMIT"
+                if status == 429
+                else "AI_GEMINI_UNAVAILABLE"
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": code,
+                    "message": "Gemini is temporarily unavailable",
+                },
+            )
+        if status in {401, 403}:
+            _log_gemini_failure(
+                settings,
+                "authentication",
+                upstream_status=status,
+                attempt=attempt,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_AUTH",
+                    "message": "Gemini authentication failed",
+                },
+            )
+        if status == 404:
+            _log_gemini_failure(
+                settings,
+                "model",
+                upstream_status=status,
+                attempt=attempt,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_MODEL_UNAVAILABLE",
+                    "message": "Configured Gemini model is unavailable",
+                },
+            )
+        if status >= 400:
+            _log_gemini_failure(
+                settings,
+                "request_rejected",
+                upstream_status=status,
+                attempt=attempt,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_GEMINI_REQUEST_REJECTED",
+                    "message": "Gemini rejected the request",
+                },
+            )
+
+        try:
+            data = response.json()
+        except ValueError:
+            _log_gemini_failure(
+                settings,
+                "invalid_json",
+                upstream_status=status,
+                attempt=attempt,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_INVALID_RESPONSE",
+                    "message": "Gemini returned invalid JSON",
+                },
+            ) from None
+        if not _valid_gemini_response(data):
+            _log_gemini_failure(
+                settings,
+                "invalid_shape",
+                upstream_status=status,
+                attempt=attempt,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_INVALID_RESPONSE",
+                    "message": "Gemini returned an invalid response",
+                },
+            )
+        return data
+    raise AssertionError("Gemini retry loop exhausted")
+
+
+def _valid_gemini_response(data):
+    if not isinstance(data, dict):
+        return False
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return False
+    content = candidates[0].get("content")
+    return (
+        isinstance(content, dict)
+        and isinstance(content.get("parts"), list)
+        and bool(content["parts"])
+    )
+
+
+def _log_gemini_failure(
+    settings,
+    category,
+    *,
+    upstream_status=None,
+    attempt,
+):
+    logger.warning(
+        "ai_provider_failure category=%s upstream_status=%s attempt=%s model=%s",
+        category,
+        upstream_status,
+        attempt,
+        settings.gemini_model,
+    )
 
 
 def _scope(session, organization_id):
