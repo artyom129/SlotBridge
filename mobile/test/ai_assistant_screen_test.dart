@@ -25,6 +25,7 @@ class _FakeApiClient extends ApiClient {
   final List<Future<dynamic> Function()> handlers;
   int calls = 0;
   final payloads = <Object?>[];
+  final paths = <String>[];
 
   @override
   Future<dynamic> post(
@@ -32,6 +33,7 @@ class _FakeApiClient extends ApiClient {
     Object? data,
     Map<String, dynamic>? headers,
   }) {
+    paths.add(path);
     payloads.add(data);
     return handlers[calls++]();
   }
@@ -389,5 +391,231 @@ void main() {
     expect(find.text('Быстрее всего'), findsOneWidget);
     expect(find.text('Ожидание: 5 мин'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('service employee and slot cards send structured selections', (
+    tester,
+  ) async {
+    final api = _FakeApiClient([
+      () async => {
+        'text': 'Выберите услугу',
+        'state': <String, dynamic>{},
+        'items': [
+          {
+            'type': 'service',
+            'value': 'Стрижка',
+            'name': 'Стрижка',
+            'duration_minutes': 45,
+          },
+        ],
+      },
+      () async => {
+        'text': 'Выберите сотрудника',
+        'state': <String, dynamic>{'service': 'Стрижка'},
+        'items': [
+          {'type': 'employee', 'value': 'Алекс', 'name': 'Алекс'},
+        ],
+      },
+      () async => {
+        'text': 'Выберите время',
+        'state': <String, dynamic>{
+          'service': 'Стрижка',
+          'employee': 'Алекс',
+          'date': '2099-01-05',
+          'candidate_slots': ['17:30'],
+        },
+        'items': [
+          {'type': 'slot', 'value': '17:30', 'time': '17:30'},
+        ],
+      },
+      () async => {
+        'text': 'Подтвердите действие',
+        'state': <String, dynamic>{
+          'pending_action': 'CREATE_BOOKING',
+          'service': 'Стрижка',
+          'employee': 'Алекс',
+          'date': '2099-01-05',
+          'time': '17:30',
+        },
+        'items': <dynamic>[],
+        'confirmation_token': 'booking-confirmation',
+      },
+    ]);
+    await tester.pumpWidget(_app(api, dark: true));
+
+    await tester.tap(find.byKey(const Key('aiQuickAction-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiResult-service-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiResult-employee-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiResult-slot-0')));
+    await tester.pumpAndSettle();
+
+    expect(api.calls, 4);
+    expect((api.payloads[1] as Map<String, dynamic>)['selection'], {
+      'type': 'service',
+      'value': 'Стрижка',
+      'label': 'Стрижка',
+    });
+    expect(
+      (api.payloads[1] as Map<String, dynamic>)['state'],
+      containsPair('service', 'Стрижка'),
+    );
+    expect((api.payloads[2] as Map<String, dynamic>)['selection'], {
+      'type': 'employee',
+      'value': 'Алекс',
+      'label': 'Алекс',
+    });
+    expect(
+      (api.payloads[2] as Map<String, dynamic>)['state'],
+      allOf(
+        containsPair('service', 'Стрижка'),
+        containsPair('employee', 'Алекс'),
+      ),
+    );
+    expect((api.payloads[3] as Map<String, dynamic>)['selection'], {
+      'type': 'slot',
+      'value': '17:30',
+      'label': '17:30',
+    });
+    expect(
+      (api.payloads[3] as Map<String, dynamic>)['state'],
+      containsPair('time', '17:30'),
+    );
+    expect(find.text('Нужно подтверждение'), findsOneWidget);
+    expect(api.paths.where((path) => path == '/ai/confirm'), isEmpty);
+  });
+
+  testWidgets('appointment and journey cards send their structured action', (
+    tester,
+  ) async {
+    final api = _FakeApiClient([
+      () async => {
+        'text': 'Ваши записи',
+        'state': <String, dynamic>{'intent': 'CANCEL'},
+        'items': [
+          {
+            'type': 'appointment',
+            'value': '2099-01-05T17:30:00+00:00',
+            'service': 'Стрижка',
+            'employee': 'Алекс',
+            'starts_at': '2099-01-05T17:30:00+00:00',
+          },
+        ],
+      },
+      () async => {
+        'text': 'Выбрана запись',
+        'state': <String, dynamic>{'selected_appointment': 'Стрижка'},
+        'items': <dynamic>[],
+      },
+      () async => {
+        'text': 'Маршруты',
+        'state': <String, dynamic>{'intent': 'MULTI_SERVICE_JOURNEY'},
+        'items': [
+          {
+            'type': 'journey',
+            'value': 'FASTEST',
+            'strategy': 'FASTEST',
+            'total_minutes': 60,
+            'wait_minutes': 0,
+            'steps': [
+              {
+                'time': '17:30–18:00',
+                'service': 'Стрижка',
+                'employee': 'Алекс',
+              },
+            ],
+          },
+        ],
+      },
+      () async => {
+        'text': 'Маршрут выбран',
+        'state': <String, dynamic>{'selected_journey': 'FASTEST'},
+        'items': <dynamic>[],
+      },
+    ]);
+    await tester.pumpWidget(_app(api));
+
+    await tester.tap(find.byKey(const Key('aiQuickAction-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiResult-appointment-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiQuickAction-4')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aiResult-journey-0')));
+    await tester.pumpAndSettle();
+
+    expect((api.payloads[1] as Map<String, dynamic>)['selection'], {
+      'type': 'appointment',
+      'value': '2099-01-05T17:30:00+00:00',
+      'label': 'Стрижка · 2099-01-05T17:30:00+00:00',
+    });
+    expect(
+      (api.payloads[1] as Map<String, dynamic>)['state'],
+      containsPair(
+        'selected_appointment',
+        'Стрижка · 2099-01-05T17:30:00+00:00',
+      ),
+    );
+    expect((api.payloads[3] as Map<String, dynamic>)['selection'], {
+      'type': 'journey',
+      'value': 'FASTEST',
+      'label': 'FASTEST',
+    });
+    expect(
+      (api.payloads[3] as Map<String, dynamic>)['state'],
+      containsPair('selected_journey', 'FASTEST'),
+    );
+  });
+
+  testWidgets('result card blocks repeated taps while selection is loading', (
+    tester,
+  ) async {
+    final selectionResponse = Completer<dynamic>();
+    final api = _FakeApiClient([
+      () async => {
+        'text': 'Выберите услугу',
+        'state': <String, dynamic>{},
+        'items': [
+          {
+            'type': 'service',
+            'value': 'Стрижка',
+            'name': 'Стрижка',
+            'duration_minutes': 45,
+          },
+        ],
+      },
+      () => selectionResponse.future,
+    ]);
+    await tester.pumpWidget(_app(api));
+    await tester.tap(find.byKey(const Key('aiQuickAction-0')));
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const Key('aiResult-service-0'));
+    await tester.ensureVisible(card);
+    await tester.pump();
+    await tester.tap(card);
+    await tester.pump();
+    await tester.ensureVisible(card);
+    await tester.pump();
+    await tester.tap(card);
+    await tester.pump();
+
+    expect(api.calls, 2);
+    expect(
+      tester
+          .widget<ListTile>(
+            find.descendant(of: card, matching: find.byType(ListTile)),
+          )
+          .onTap,
+      isNull,
+    );
+    selectionResponse.complete({
+      'text': 'Готово',
+      'state': <String, dynamic>{'service': 'Стрижка'},
+      'items': <dynamic>[],
+    });
+    await tester.pumpAndSettle();
   });
 }

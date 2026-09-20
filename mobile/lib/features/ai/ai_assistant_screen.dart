@@ -16,6 +16,34 @@ enum AiFailureKind {
   unknown,
 }
 
+enum AiResultItemType { service, employee, slot, appointment, journey, unknown }
+
+AiResultItemType classifyAiResultItem(
+  Map<String, dynamic> item,
+  Map<String, dynamic> conversationState,
+) {
+  final explicitType = item['type']?.toString();
+  final explicit = AiResultItemType.values.where(
+    (value) => value.name == explicitType,
+  );
+  if (explicit.isNotEmpty) return explicit.first;
+  if (item['strategy'] != null && item['steps'] is List) {
+    return AiResultItemType.journey;
+  }
+  if (item['starts_at'] != null && item['service'] != null) {
+    return AiResultItemType.appointment;
+  }
+  if (item['time'] != null) return AiResultItemType.slot;
+  if (item['duration_minutes'] != null) return AiResultItemType.service;
+  if (item['name'] != null) {
+    return conversationState['service'] != null &&
+            conversationState['employee'] == null
+        ? AiResultItemType.employee
+        : AiResultItemType.service;
+  }
+  return AiResultItemType.unknown;
+}
+
 AiFailureKind classifyAiFailure(Object error) {
   if (error is FormatException || error is TypeError) {
     return AiFailureKind.invalidResponse;
@@ -64,6 +92,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   List<Map<String, dynamic>> _items = [];
   String? _confirmationToken;
   String? _lastFailedMessage;
+  Map<String, dynamic>? _lastFailedSelection;
   bool _loading = false;
   bool _confirming = false;
   bool _confirmationError = false;
@@ -72,6 +101,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   bool _waitingForColdStart = false;
   bool _retryingAutomatically = false;
   String? _activeQuickAction;
+  String? _activeResultKey;
   Timer? _slowRequestTimer;
 
   bool get _isEnglish => Localizations.localeOf(context).languageCode == 'en';
@@ -97,17 +127,115 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     await _submitMessage(text, appendUserMessage: true, quickAction: value);
   }
 
+  Future<void> _selectResultItem(Map<String, dynamic> item, int index) async {
+    if (_loading || _confirmationToken != null) return;
+    final type = classifyAiResultItem(item, _conversationState);
+    if (type == AiResultItemType.unknown) return;
+    final value = switch (type) {
+      AiResultItemType.service ||
+      AiResultItemType.employee => item['value'] ?? item['name'],
+      AiResultItemType.slot => item['value'] ?? item['time'],
+      AiResultItemType.appointment => item['value'] ?? item['starts_at'],
+      AiResultItemType.journey => item['value'] ?? item['strategy'],
+      AiResultItemType.unknown => null,
+    }?.toString();
+    if (value == null || value.trim().isEmpty) return;
+    final label = switch (type) {
+      AiResultItemType.appointment =>
+        '${item['service'] ?? ''} · ${item['starts_at'] ?? ''}',
+      AiResultItemType.journey => item['strategy']?.toString() ?? value,
+      _ => (item['name'] ?? item['time'] ?? value).toString(),
+    };
+    final nextState = Map<String, dynamic>.from(_conversationState);
+    switch (type) {
+      case AiResultItemType.service:
+        nextState
+          ..['service'] = label
+          ..remove('employee')
+          ..remove('time')
+          ..remove('candidate_slots')
+          ..remove('pending_action');
+        break;
+      case AiResultItemType.employee:
+        nextState
+          ..['employee'] = label
+          ..remove('time')
+          ..remove('candidate_slots')
+          ..remove('pending_action');
+        break;
+      case AiResultItemType.slot:
+        nextState['time'] = value;
+        break;
+      case AiResultItemType.appointment:
+        nextState['selected_appointment'] = label;
+        break;
+      case AiResultItemType.journey:
+        nextState['selected_journey'] = value;
+        break;
+      case AiResultItemType.unknown:
+        return;
+    }
+    final prompt = _selectionPrompt(type, label);
+    setState(() => _activeResultKey = '${type.name}:$index:$value');
+    await _submitMessage(
+      prompt,
+      appendUserMessage: true,
+      displayText: _isEnglish ? 'Selected: $label' : 'Выбрано: $label',
+      selection: {'type': type.name, 'value': value, 'label': label},
+      conversationState: nextState,
+      clearItems: false,
+    );
+  }
+
+  String _selectionPrompt(AiResultItemType type, String label) {
+    if (_isEnglish) {
+      return switch (type) {
+        AiResultItemType.service =>
+          'I selected the service “$label”. Continue to the next booking step.',
+        AiResultItemType.employee =>
+          'I selected the specialist “$label”. Show the next booking step.',
+        AiResultItemType.slot =>
+          'I selected the time $label. Prepare the booking for confirmation.',
+        AiResultItemType.appointment =>
+          'I selected the appointment “$label”. Continue the requested action.',
+        AiResultItemType.journey =>
+          'I selected the journey “$label”. Continue without booking until I confirm.',
+        AiResultItemType.unknown => label,
+      };
+    }
+    return switch (type) {
+      AiResultItemType.service =>
+        'Я выбрал услугу «$label». Продолжи к следующему шагу записи.',
+      AiResultItemType.employee =>
+        'Я выбрал сотрудника «$label». Покажи следующий шаг записи.',
+      AiResultItemType.slot =>
+        'Я выбрал время $label. Подготовь запись для подтверждения.',
+      AiResultItemType.appointment =>
+        'Я выбрал запись «$label». Продолжи запрошенное действие.',
+      AiResultItemType.journey =>
+        'Я выбрал маршрут «$label». Продолжи без записи до моего подтверждения.',
+      AiResultItemType.unknown => label,
+    };
+  }
+
   Future<void> _submitMessage(
     String text, {
     required bool appendUserMessage,
     String? quickAction,
+    String? displayText,
+    Map<String, dynamic>? selection,
+    Map<String, dynamic>? conversationState,
+    bool clearItems = true,
   }) async {
     if (text.isEmpty || _loading) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       if (appendUserMessage) {
-        _messages.add((user: true, text: text));
+        _messages.add((user: true, text: displayText ?? text));
         _inputController.clear();
+      }
+      if (conversationState != null) {
+        _conversationState = conversationState;
       }
       _loading = true;
       _confirming = false;
@@ -115,8 +243,9 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       _hasError = false;
       _failureKind = AiFailureKind.unknown;
       _lastFailedMessage = text;
+      _lastFailedSelection = selection;
       _confirmationToken = null;
-      _items = [];
+      if (clearItems) _items = [];
       _activeQuickAction = quickAction;
       _waitingForColdStart = false;
       _retryingAutomatically = false;
@@ -130,7 +259,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     _scrollToBottom();
 
     try {
-      final raw = await _postChatWithRetry(text);
+      final raw = await _postChatWithRetry(text, selection: selection);
       if (!mounted) return;
       if (raw is! Map) {
         throw const FormatException('AI response is not an object');
@@ -153,6 +282,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         final token = response['confirmation_token']?.toString().trim();
         _confirmationToken = token == null || token.isEmpty ? null : token;
         _lastFailedMessage = null;
+        _lastFailedSelection = null;
       });
     } catch (error) {
       if (!mounted) return;
@@ -169,6 +299,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         setState(() {
           _loading = false;
           _activeQuickAction = null;
+          _activeResultKey = null;
           _waitingForColdStart = false;
           _retryingAutomatically = false;
         });
@@ -177,7 +308,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     }
   }
 
-  Future<dynamic> _postChatWithRetry(String text) async {
+  Future<dynamic> _postChatWithRetry(
+    String text, {
+    Map<String, dynamic>? selection,
+  }) async {
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
         return await ref
@@ -188,6 +322,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 'message': text,
                 'locale': _isEnglish ? 'en' : 'ru',
                 'state': _conversationState,
+                'selection': ?selection,
               },
             );
       } catch (error) {
@@ -286,7 +421,12 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     }
     final message = _lastFailedMessage;
     if (message != null) {
-      await _submitMessage(message, appendUserMessage: false);
+      await _submitMessage(
+        message,
+        appendUserMessage: false,
+        selection: _lastFailedSelection,
+        clearItems: _lastFailedSelection == null,
+      );
     }
   }
 
@@ -373,7 +513,29 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                           text: message.text,
                         ),
                       ),
-                      ..._items.take(6).map((item) => _ResultCard(item: item)),
+                      ..._items.take(12).toList().asMap().entries.map((entry) {
+                        final type = classifyAiResultItem(
+                          entry.value,
+                          _conversationState,
+                        );
+                        final value =
+                            (entry.value['value'] ??
+                                    entry.value['name'] ??
+                                    entry.value['time'] ??
+                                    entry.value['strategy'] ??
+                                    '')
+                                .toString();
+                        final resultKey = '${type.name}:${entry.key}:$value';
+                        return _ResultCard(
+                          key: ValueKey('aiResult-${type.name}-${entry.key}'),
+                          item: entry.value,
+                          type: type,
+                          enabled: !_loading && _confirmationToken == null,
+                          selected: _activeResultKey == resultKey,
+                          onTap: () =>
+                              _selectResultItem(entry.value, entry.key),
+                        );
+                      }),
                       if (_confirmationToken != null)
                         _ConfirmationCard(
                           isEnglish: _isEnglish,
@@ -459,58 +621,76 @@ class _QuickActions extends StatelessWidget {
   final ValueChanged<String> onPressed;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 56,
-    child: ListView.separated(
-      key: const Key('aiQuickActionsList'),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      scrollDirection: Axis.horizontal,
-      itemCount: actions.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 8),
-      itemBuilder: (context, index) => SizedBox(
-        width: 148,
-        height: 56,
-        child: OutlinedButton(
-          key: Key('aiQuickAction-$index'),
-          onPressed: enabled ? () => onPressed(actions[index]) : null,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(48, 56),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            tapTargetSize: MaterialTapTargetSize.padded,
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            child: activeAction == actions[index]
-                ? Row(
-                    key: const ValueKey('loading'),
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 600 ? 3 : 2;
+        final buttonWidth =
+            (constraints.maxWidth - (columns - 1) * 8) / columns;
+        return Wrap(
+          key: const Key('aiQuickActionsList'),
+          spacing: 8,
+          runSpacing: 8,
+          children: actions
+              .asMap()
+              .entries
+              .map((entry) {
+                final index = entry.key;
+                final action = entry.value;
+                return SizedBox(
+                  width: buttonWidth,
+                  height: 56,
+                  child: OutlinedButton(
+                    key: Key('aiQuickAction-$index'),
+                    onPressed: enabled ? () => onPressed(action) : null,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 56),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          actions[index],
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  )
-                : Text(
-                    actions[index],
-                    key: const ValueKey('label'),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
+                      tapTargetSize: MaterialTapTargetSize.padded,
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      child: activeAction == action
+                          ? Row(
+                              key: const ValueKey('loading'),
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    action,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              action,
+                              key: const ValueKey('label'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                    ),
                   ),
-          ),
-        ),
-      ),
+                );
+              })
+              .toList(growable: false),
+        );
+      },
     ),
   );
 }
@@ -569,9 +749,20 @@ class _MessageBubble extends StatelessWidget {
 }
 
 class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.item});
+  const _ResultCard({
+    super.key,
+    required this.item,
+    required this.type,
+    required this.enabled,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Map<String, dynamic> item;
+  final AiResultItemType type;
+  final bool enabled;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -585,54 +776,72 @@ class _ResultCard extends StatelessWidget {
         _ => isEnglish ? 'Fewer specialists' : 'Меньше сотрудников',
       };
       return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              ...rawSteps.whereType<Map>().map(
-                (step) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 96,
-                        child: Text(
-                          step['time']?.toString() ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      Expanded(
-                        child: Text(
-                          '${step['service'] ?? ''}\n${step['employee'] ?? ''}',
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    _ResultTrailing(
+                      enabled: enabled,
+                      selected: selected,
+                      isEnglish: isEnglish,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...rawSteps.whereType<Map>().map(
+                  (step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 96,
+                          child: Text(
+                            step['time']?.toString() ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: Text(
+                            '${step['service'] ?? ''}\n${step['employee'] ?? ''}',
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Wrap(
-                spacing: 12,
-                runSpacing: 4,
-                children: [
-                  Text(
-                    isEnglish
-                        ? 'Total: ${item['total_minutes']} min'
-                        : 'Всего: ${item['total_minutes']} мин',
-                  ),
-                  Text(
-                    isEnglish
-                        ? 'Waiting: ${item['wait_minutes']} min'
-                        : 'Ожидание: ${item['wait_minutes']} мин',
-                  ),
-                ],
-              ),
-            ],
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      isEnglish
+                          ? 'Total: ${item['total_minutes']} min'
+                          : 'Всего: ${item['total_minutes']} мин',
+                    ),
+                    Text(
+                      isEnglish
+                          ? 'Waiting: ${item['wait_minutes']} min'
+                          : 'Ожидание: ${item['wait_minutes']} мин',
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -640,16 +849,64 @@ class _ResultCard extends StatelessWidget {
     final title = (item['time'] ?? item['service'] ?? item['name'] ?? '')
         .toString();
     final subtitle = item['employee']?.toString();
+    final isEnglish = Localizations.localeOf(context).languageCode == 'en';
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         minVerticalPadding: 12,
-        leading: Icon(
-          item['reason'] != null ? Icons.star_rounded : Icons.schedule_rounded,
-        ),
+        enabled: enabled,
+        onTap: enabled ? onTap : null,
+        leading: Icon(switch (type) {
+          AiResultItemType.service => Icons.spa_outlined,
+          AiResultItemType.employee => Icons.person_outline_rounded,
+          AiResultItemType.slot =>
+            item['reason'] != null
+                ? Icons.star_rounded
+                : Icons.schedule_rounded,
+          AiResultItemType.appointment => Icons.event_note_outlined,
+          AiResultItemType.journey => Icons.route_outlined,
+          AiResultItemType.unknown => Icons.info_outline,
+        }),
         title: Text(title, maxLines: 3, overflow: TextOverflow.ellipsis),
         subtitle: subtitle == null
             ? null
             : Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+        trailing: _ResultTrailing(
+          enabled: enabled,
+          selected: selected,
+          isEnglish: isEnglish,
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultTrailing extends StatelessWidget {
+  const _ResultTrailing({
+    required this.enabled,
+    required this.selected,
+    required this.isEnglish,
+  });
+
+  final bool enabled;
+  final bool selected;
+  final bool isEnglish;
+
+  @override
+  Widget build(BuildContext context) {
+    if (selected && !enabled) {
+      return const SizedBox.square(
+        dimension: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return Tooltip(
+      message: isEnglish ? 'Select' : 'Выбрать',
+      child: Icon(
+        Icons.chevron_right_rounded,
+        color: enabled
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).disabledColor,
       ),
     );
   }
