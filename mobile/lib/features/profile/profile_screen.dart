@@ -222,7 +222,7 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.info_outline_rounded),
                     title: Text(context.l10n.about),
-                    subtitle: Text('${context.l10n.version} 1.1.2 (6)'),
+                    subtitle: Text('${context.l10n.version} 1.1.4 (8)'),
                   ),
                 ],
               ),

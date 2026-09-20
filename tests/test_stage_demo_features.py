@@ -10,7 +10,7 @@ def test_current_client_can_edit_only_profile_fields(client, session):
 def test_public_version_manifest_has_expected_shape(client):
     response = client.get('/api/v1/app/version')
     assert response.status_code == 200
-    assert response.json()['version_code'] == 6
+    assert response.json()['version_code'] == 8
     assert response.json()['required'] is False
     assert response.json()['apk_url'].startswith('https://')
     assert set(response.json()['changelog']) == {'ru','en'}
