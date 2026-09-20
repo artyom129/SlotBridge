@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     ai_provider: Literal["gemini"] = "gemini"
     gemini_api_key: SecretStr | None = None
     gemini_model: str = Field(default="gemini-3.6-flash", pattern=r"^[a-zA-Z0-9._-]+$")
+    gemini_fallback_model: str = Field(
+        default="gemini-3.5-flash-lite",
+        pattern=r"^[a-zA-Z0-9._-]+$",
+    )
 
     allow_unsigned_demo_webhooks: bool = False
     mindbody_webhook_secret: SecretStr | None = Field(default=None, min_length=32)

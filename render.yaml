@@ -23,6 +23,8 @@ services:
         value: gemini
       - key: GEMINI_MODEL
         value: gemini-3.6-flash
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-3.5-flash-lite
       - key: GEMINI_API_KEY
         sync: false
       - key: PUBLIC_DEMO_REGISTRATION_ENABLED

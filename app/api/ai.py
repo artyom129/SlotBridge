@@ -4,6 +4,8 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
+import time as time_module
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Annotated, Any
 from uuid import UUID, uuid4
@@ -22,9 +24,11 @@ from app.models import (Branch, Employee, EmployeeService, OrganizationMembershi
                         Service, User, WaitlistEntry, WaitlistStatus)
 from app.services.availability import AvailabilityService
 from app.services.booking import BookingError, BookingService
+from app.services.journeys import JourneyPlanner
 from app.services.recommendations import recommend_slots
 
 router = APIRouter(prefix="/ai", tags=["ai-assistant"])
+logger = logging.getLogger("slotbridge.ai")
 
 
 class ChatRequest(BaseModel):
@@ -47,6 +51,7 @@ FUNCTIONS = [
     ("prepare_cancellation", "Prepare cancellation of the nearest appointment", {}),
     ("prepare_waitlist", "Prepare joining the waitlist", {"service_name": {"type": "STRING"}, "employee_name": {"type": "STRING"}, "date": {"type": "STRING"}, "start_time": {"type": "STRING"}}),
     ("explain_unavailability", "Explain from real availability why no slot is shown", {"service_name": {"type": "STRING"}, "employee_name": {"type": "STRING"}, "date": {"type": "STRING"}}),
+    ("plan_multi_service_journey", "Plan one visit containing multiple services. The backend, not the model, chooses real slots and employees.", {"service_names": {"type": "ARRAY", "items": {"type": "STRING"}}, "date": {"type": "STRING"}, "after_time": {"type": "STRING"}, "before_time": {"type": "STRING"}}),
 ]
 TOOLS = [{"functionDeclarations": [{"name": n, "description": d, "parameters": {"type": "OBJECT", "properties": p}} for n, d, p in FUNCTIONS]}]
 ALLOWED = {item[0] for item in FUNCTIONS}
@@ -105,13 +110,225 @@ def confirm(payload: ConfirmRequest, client: Annotated[User, Depends(require_cli
     raise HTTPException(422, detail={"code": "AI_ACTION_REJECTED", "message": "Unsupported action"})
 
 
-def _gemini(settings, system, contents):
+def _gemini(settings, system, contents, *, _model=None):
+    model = _model or settings.gemini_model
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    request_json = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}
+    timeout = httpx.Timeout(40.0, connect=10.0)
+    for attempt in range(1, 4):
+        try:
+            response = httpx.post(
+                url,
+                headers={"x-goog-api-key": settings.gemini_api_key.get_secret_value()},
+                json=request_json,
+                timeout=timeout,
+            )
+        except httpx.TimeoutException:
+            _log_gemini_failure(settings, "timeout", attempt=attempt, model=model)
+            if attempt < 2:
+                time_module.sleep(0.5)
+                continue
+            raise HTTPException(
+                504,
+                detail={
+                    "code": "AI_GEMINI_TIMEOUT",
+                    "message": "Gemini did not respond in time",
+                },
+            ) from None
+        except httpx.RequestError:
+            _log_gemini_failure(settings, "network", attempt=attempt, model=model)
+            if attempt < 2:
+                time_module.sleep(0.5)
+                continue
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_NETWORK",
+                    "message": "Gemini is temporarily unreachable",
+                },
+            ) from None
+
+        status = response.status_code
+        if status == 429 or status >= 500:
+            category = "rate_limit" if status == 429 else "upstream"
+            _log_gemini_failure(
+                settings,
+                category,
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            if (
+                status == 429
+                and model == settings.gemini_model
+                and settings.gemini_fallback_model != model
+            ):
+                _log_gemini_failure(
+                    settings,
+                    "rate_limit_fallback",
+                    upstream_status=status,
+                    attempt=attempt,
+                    model=settings.gemini_fallback_model,
+                )
+                return _gemini(
+                    settings,
+                    system,
+                    contents,
+                    _model=settings.gemini_fallback_model,
+                )
+            retry_limit = 3 if status == 429 else 2
+            if attempt < retry_limit:
+                time_module.sleep(_gemini_retry_delay(response, attempt))
+                continue
+            code = (
+                "AI_GEMINI_RATE_LIMIT"
+                if status == 429
+                else "AI_GEMINI_UNAVAILABLE"
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": code,
+                    "message": "Gemini is temporarily unavailable",
+                },
+            )
+        if status in {401, 403}:
+            _log_gemini_failure(
+                settings,
+                "authentication",
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_AUTH",
+                    "message": "Gemini authentication failed",
+                },
+            )
+        if status == 404:
+            _log_gemini_failure(
+                settings,
+                "model",
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            raise HTTPException(
+                503,
+                detail={
+                    "code": "AI_GEMINI_MODEL_UNAVAILABLE",
+                    "message": "Configured Gemini model is unavailable",
+                },
+            )
+        if status >= 400:
+            _log_gemini_failure(
+                settings,
+                "request_rejected",
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_GEMINI_REQUEST_REJECTED",
+                    "message": "Gemini rejected the request",
+                },
+            )
+
+        try:
+            data = response.json()
+        except ValueError:
+            _log_gemini_failure(
+                settings,
+                "invalid_json",
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_INVALID_RESPONSE",
+                    "message": "Gemini returned invalid JSON",
+                },
+            ) from None
+        if not _valid_gemini_response(data):
+            _log_gemini_failure(
+                settings,
+                "invalid_shape",
+                upstream_status=status,
+                attempt=attempt,
+                model=model,
+            )
+            raise HTTPException(
+                502,
+                detail={
+                    "code": "AI_INVALID_RESPONSE",
+                    "message": "Gemini returned an invalid response",
+                },
+            )
+        return data
+    raise AssertionError("Gemini retry loop exhausted")
+
+
+def _gemini_retry_delay(response, attempt):
+    retry_after = response.headers.get("retry-after")
+    if retry_after:
+        try:
+            return min(max(float(retry_after), 0.0), 30.0)
+        except ValueError:
+            pass
     try:
-        response = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent", headers={"x-goog-api-key": settings.gemini_api_key.get_secret_value()}, json={"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}, timeout=20)
-        response.raise_for_status()
-        return response.json()
-    except Exception:
-        raise HTTPException(503, detail={"code": "AI_UNAVAILABLE", "message": "AI Assistant is temporarily unavailable"}) from None
+        details = response.json().get("error", {}).get("details", [])
+        retry_info = next(
+            (
+                item
+                for item in details
+                if isinstance(item, dict)
+                and str(item.get("@type", "")).endswith("RetryInfo")
+            ),
+            None,
+        )
+        raw_delay = str((retry_info or {}).get("retryDelay", "")).rstrip("s")
+        if raw_delay:
+            return min(max(float(raw_delay), 0.0), 30.0)
+    except (AttributeError, TypeError, ValueError):
+        pass
+    return 2.0 if attempt == 1 else 5.0
+
+
+def _valid_gemini_response(data):
+    if not isinstance(data, dict):
+        return False
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return False
+    content = candidates[0].get("content")
+    return (
+        isinstance(content, dict)
+        and isinstance(content.get("parts"), list)
+        and bool(content["parts"])
+    )
+
+
+def _log_gemini_failure(
+    settings,
+    category,
+    *,
+    upstream_status=None,
+    attempt,
+    model=None,
+):
+    logger.warning(
+        "ai_provider_failure category=%s upstream_status=%s attempt=%s model=%s",
+        category,
+        upstream_status,
+        attempt,
+        model or settings.gemini_model,
+    )
 
 
 def _scope(session, organization_id):
@@ -145,6 +362,62 @@ def _execute(name, args, locale, organization_id, client, session, settings):
         values = BookingService(session).list_my(client, view="upcoming")
         items = [{"service": x.service.name, "employee": x.employee.display_name, "starts_at": x.starts_at.isoformat()} for x in values]
         text = "Ваши ближайшие записи" if locale == "ru" else "Your upcoming appointments"
+    elif name == "plan_multi_service_journey":
+        requested_names = args.get("service_names") or []
+        services = [
+            _service(session, organization_id, str(service_name))
+            for service_name in requested_names
+        ]
+        if len(services) < 2 or any(service is None for service in services):
+            raise HTTPException(
+                404,
+                detail={
+                    "code": "AI_RESOURCE_NOT_FOUND",
+                    "message": "Two or more matching services are required",
+                },
+            )
+        local_date = date.fromisoformat(args["date"])
+        timezone_name, routes = JourneyPlanner(
+            session,
+            settings.availability_slot_interval_minutes,
+        ).plan(
+            client,
+            branch_id=branch.id,
+            service_ids=[service.id for service in services if service is not None],
+            local_date=local_date,
+            after_time=time.fromisoformat(args.get("after_time") or "00:00"),
+            before_time=time.fromisoformat(args.get("before_time") or "23:59"),
+        )
+        items = [
+            {
+                "strategy": route.strategy,
+                "total_minutes": route.total_minutes,
+                "wait_minutes": route.wait_minutes,
+                "employee_count": route.employee_count,
+                "timezone": timezone_name,
+                "steps": [
+                    {
+                        "service": step.service_name,
+                        "employee": step.employee_name,
+                        "time": f"{step.starts_at:%H:%M}–{step.ends_at:%H:%M}",
+                        "starts_at": step.starts_at.isoformat(),
+                        "ends_at": step.ends_at.isoformat(),
+                    }
+                    for step in route.steps
+                ],
+            }
+            for route in routes
+        ]
+        text = (
+            ("Нашёл варианты маршрута" if items else "Подходящий маршрут не найден")
+            if locale == "ru"
+            else ("I found journey options" if items else "No matching journey was found")
+        )
+        state = {
+            "intent": "MULTI_SERVICE_JOURNEY",
+            "services": [service.name for service in services if service is not None],
+            "date": args["date"],
+        }
     elif name in {"get_availability", "explain_unavailability", "prepare_booking", "prepare_waitlist"}:
         service = _service(session, organization_id, args.get("service_name", "")); employee = None if service is None else _employee(session, organization_id, branch.id, args.get("employee_name", ""), service.id)
         if service is None or employee is None: raise HTTPException(404, detail={"code": "AI_RESOURCE_NOT_FOUND", "message": "Service or employee not found"})

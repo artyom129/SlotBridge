@@ -6,6 +6,47 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors/app_exception.dart';
 import '../../core/providers.dart';
 
+enum AiFailureKind {
+  timeout,
+  backendUnavailable,
+  rateLimited,
+  geminiUnavailable,
+  auth,
+  invalidResponse,
+  unknown,
+}
+
+AiFailureKind classifyAiFailure(Object error) {
+  if (error is FormatException || error is TypeError) {
+    return AiFailureKind.invalidResponse;
+  }
+  if (error is! AppException) return AiFailureKind.unknown;
+  if (error.statusCode == 401 || error.statusCode == 403) {
+    return AiFailureKind.auth;
+  }
+  if (error.code == 'timeout' || error.code == 'AI_GEMINI_TIMEOUT') {
+    return AiFailureKind.timeout;
+  }
+  if (error.code == 'connection_error' || error.code == 'AI_GEMINI_NETWORK') {
+    return AiFailureKind.backendUnavailable;
+  }
+  if (error.code == 'AI_INVALID_RESPONSE' ||
+      error.code == 'AI_GEMINI_REQUEST_REJECTED') {
+    return AiFailureKind.invalidResponse;
+  }
+  if (error.code == 'AI_GEMINI_RATE_LIMIT') {
+    return AiFailureKind.rateLimited;
+  }
+  if (error.code == 'AI_UNAVAILABLE' ||
+      (error.code?.startsWith('AI_GEMINI_') ?? false)) {
+    return AiFailureKind.geminiUnavailable;
+  }
+  if (error.statusCode != null && error.statusCode! >= 500) {
+    return AiFailureKind.backendUnavailable;
+  }
+  return AiFailureKind.unknown;
+}
+
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
 
@@ -27,6 +68,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   bool _confirming = false;
   bool _confirmationError = false;
   bool _hasError = false;
+  AiFailureKind _failureKind = AiFailureKind.unknown;
   bool _waitingForColdStart = false;
   bool _retryingAutomatically = false;
   String? _activeQuickAction;
@@ -71,6 +113,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       _confirming = false;
       _confirmationError = false;
       _hasError = false;
+      _failureKind = AiFailureKind.unknown;
       _lastFailedMessage = text;
       _confirmationToken = null;
       _items = [];
@@ -89,7 +132,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     try {
       final raw = await _postChatWithRetry(text);
       if (!mounted) return;
-      final response = (raw as Map).cast<String, dynamic>();
+      if (raw is! Map) {
+        throw const FormatException('AI response is not an object');
+      }
+      final response = raw.cast<String, dynamic>();
       final responseText = response['text']?.toString().trim() ?? '';
       final rawItems = response['items'];
       setState(() {
@@ -108,10 +154,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         _confirmationToken = token == null || token.isEmpty ? null : token;
         _lastFailedMessage = null;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
+      final failureKind = classifyAiFailure(error);
+      _logSafeFailure(error, failureKind);
       setState(() {
         _hasError = true;
+        _failureKind = failureKind;
         _confirmationError = false;
       });
     } finally {
@@ -154,10 +203,34 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   bool _isTemporaryAiError(Object error) {
     if (error is! AppException) return false;
-    return error.code == 'timeout' ||
-        error.code == 'connection_error' ||
-        error.code == 'AI_UNAVAILABLE' ||
+    if (const {
+      'AI_GEMINI_AUTH',
+      'AI_GEMINI_MODEL_UNAVAILABLE',
+      'AI_GEMINI_REQUEST_REJECTED',
+      'AI_GEMINI_RATE_LIMIT',
+      'AI_INVALID_RESPONSE',
+    }.contains(error.code)) {
+      return false;
+    }
+    return const {
+          'timeout',
+          'connection_error',
+          'AI_UNAVAILABLE',
+          'AI_GEMINI_TIMEOUT',
+          'AI_GEMINI_NETWORK',
+          'AI_GEMINI_UNAVAILABLE',
+        }.contains(error.code) ||
         const {502, 503, 504}.contains(error.statusCode);
+  }
+
+  void _logSafeFailure(Object error, AiFailureKind kind) {
+    final appError = error is AppException ? error : null;
+    debugPrint(
+      'SlotBridge AI failure '
+      'kind=${kind.name} '
+      'code=${appError?.code ?? 'invalid_response'} '
+      'status=${appError?.statusCode ?? 'none'}',
+    );
   }
 
   Future<void> _confirm() async {
@@ -167,6 +240,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       _loading = true;
       _confirming = true;
       _hasError = false;
+      _failureKind = AiFailureKind.unknown;
       _confirmationError = false;
     });
     _scrollToBottom();
@@ -184,10 +258,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               : 'Готово. Данные вашей записи обновлены.',
         ));
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
+      final failureKind = classifyAiFailure(error);
+      _logSafeFailure(error, failureKind);
       setState(() {
         _hasError = true;
+        _failureKind = failureKind;
         _confirmationError = true;
       });
     } finally {
@@ -218,6 +295,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     setState(() {
       _confirmationToken = null;
       _hasError = false;
+      _failureKind = AiFailureKind.unknown;
       _confirmationError = false;
       _messages.add((
         user: false,
@@ -307,6 +385,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                         _AiErrorCard(
                           isEnglish: _isEnglish,
                           loading: _loading,
+                          failureKind: _failureKind,
                           onRetry: _retry,
                         ),
                       if (_loading)
@@ -496,6 +575,68 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rawSteps = item['steps'];
+    if (item['strategy'] != null && rawSteps is List) {
+      final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+      final strategy = item['strategy']?.toString();
+      final title = switch (strategy) {
+        'FASTEST' => isEnglish ? 'Fastest' : 'Быстрее всего',
+        'EARLIEST' => isEnglish ? 'Earliest possible' : 'Как можно раньше',
+        _ => isEnglish ? 'Fewer specialists' : 'Меньше сотрудников',
+      };
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              ...rawSteps.whereType<Map>().map(
+                (step) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 96,
+                        child: Text(
+                          step['time']?.toString() ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${step['service'] ?? ''}\n${step['employee'] ?? ''}',
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    isEnglish
+                        ? 'Total: ${item['total_minutes']} min'
+                        : 'Всего: ${item['total_minutes']} мин',
+                  ),
+                  Text(
+                    isEnglish
+                        ? 'Waiting: ${item['wait_minutes']} min'
+                        : 'Ожидание: ${item['wait_minutes']} мин',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final title = (item['time'] ?? item['service'] ?? item['name'] ?? '')
         .toString();
     final subtitle = item['employee']?.toString();
@@ -590,12 +731,43 @@ class _AiErrorCard extends StatelessWidget {
   const _AiErrorCard({
     required this.isEnglish,
     required this.loading,
+    required this.failureKind,
     required this.onRetry,
   });
 
   final bool isEnglish;
   final bool loading;
+  final AiFailureKind failureKind;
   final VoidCallback onRetry;
+
+  String get message => switch ((isEnglish, failureKind)) {
+    (true, AiFailureKind.timeout) =>
+      'The AI request took too long. Please try again.',
+    (false, AiFailureKind.timeout) =>
+      'AI не ответил вовремя. Попробуйте ещё раз.',
+    (true, AiFailureKind.backendUnavailable) =>
+      'Could not reach SlotBridge. Check your connection and try again.',
+    (false, AiFailureKind.backendUnavailable) =>
+      'Не удалось связаться со SlotBridge. Проверьте интернет и повторите.',
+    (true, AiFailureKind.rateLimited) =>
+      'Gemini is receiving too many requests. Wait a moment and try again.',
+    (false, AiFailureKind.rateLimited) =>
+      'Gemini получил слишком много запросов. Подождите немного и повторите.',
+    (true, AiFailureKind.geminiUnavailable) =>
+      'Gemini is temporarily unavailable. Regular booking still works.',
+    (false, AiFailureKind.geminiUnavailable) =>
+      'Gemini временно недоступен. Обычная запись продолжает работать.',
+    (true, AiFailureKind.auth) =>
+      'Your session has expired. Sign in again to use SlotBridge AI.',
+    (false, AiFailureKind.auth) =>
+      'Сессия истекла. Войдите снова, чтобы использовать SlotBridge AI.',
+    (true, AiFailureKind.invalidResponse) =>
+      'AI returned an invalid response. Please try again.',
+    (false, AiFailureKind.invalidResponse) =>
+      'AI вернул некорректный ответ. Попробуйте ещё раз.',
+    (true, _) => 'AI Assistant could not complete the request. Regular booking still works.',
+    (false, _) => 'AI-помощник не смог выполнить запрос. Обычная запись продолжает работать.',
+  };
 
   @override
   Widget build(BuildContext context) => Card(
@@ -605,21 +777,19 @@ class _AiErrorCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            isEnglish
-                ? 'AI Assistant is temporarily unavailable. Regular booking still works.'
-                : 'AI-помощник временно недоступен. Обычная запись продолжает работать.',
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.tonalIcon(
-              key: const Key('aiRetryButton'),
-              onPressed: loading ? null : onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(isEnglish ? 'Try again' : 'Повторить'),
+          Text(message),
+          if (failureKind != AiFailureKind.auth) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                key: const Key('aiRetryButton'),
+                onPressed: loading ? null : onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(isEnglish ? 'Try again' : 'Повторить'),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     ),

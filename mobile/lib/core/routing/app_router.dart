@@ -14,6 +14,7 @@ import '../../features/ai/ai_assistant_screen.dart';
 import '../../features/home/app_shell.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/journey/journey_screen.dart';
 import '../../l10n/l10n.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -65,6 +66,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/book',
         builder: (context, state) => const BookingFlowScreen(),
+      ),
+      GoRoute(
+        path: '/journey',
+        builder: (context, state) => const JourneyScreen(),
       ),
       GoRoute(
         path: '/ai',
