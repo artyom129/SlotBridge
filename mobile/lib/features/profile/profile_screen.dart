@@ -17,47 +17,77 @@ class ProfileScreen extends ConsumerWidget {
     if (user == null) return;
     final first = TextEditingController(text: user.firstName),
         last = TextEditingController(text: user.lastName),
-        phone = TextEditingController(text: user.phone ?? '');
+        phone = TextEditingController(text: user.phone ?? ''),
+        email = TextEditingController(text: user.email);
     final save = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        key: const Key('editProfileDialog'),
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: Text(context.l10n.editProfile),
-        content: SingleChildScrollView(
+        content: SizedBox(
+          width: 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
+                key: const Key('editProfileFirstName'),
                 controller: first,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: context.l10n.firstNameLabel,
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
               ),
+              const SizedBox(height: 12),
               TextField(
+                key: const Key('editProfileLastName'),
                 controller: last,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: context.l10n.lastNameLabel,
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
                 ),
               ),
+              const SizedBox(height: 12),
               TextField(
+                key: const Key('editProfilePhone'),
                 controller: phone,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
                   labelText: context.l10n.phoneOptionalLabel,
+                  prefixIcon: const Icon(Icons.phone_outlined),
                 ),
               ),
-              TextFormField(
-                initialValue: user.email,
-                enabled: false,
-                decoration: InputDecoration(labelText: context.l10n.emailLabel),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('editProfileEmail'),
+                controller: email,
+                readOnly: true,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: context.l10n.emailLabel,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  suffixIcon: const Icon(Icons.lock_outline_rounded),
+                ),
               ),
             ],
           ),
         ),
+        actionsAlignment: MainAxisAlignment.end,
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         actions: [
           TextButton(
+            key: const Key('editProfileBackButton'),
             onPressed: () => Navigator.pop(context, false),
             child: Text(context.l10n.back),
           ),
           FilledButton(
+            key: const Key('editProfileSaveButton'),
             onPressed: () => Navigator.pop(context, true),
             child: Text(context.l10n.save),
           ),
@@ -84,6 +114,7 @@ class ProfileScreen extends ConsumerWidget {
     first.dispose();
     last.dispose();
     phone.dispose();
+    email.dispose();
   }
 
   @override
@@ -191,7 +222,7 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.info_outline_rounded),
                     title: Text(context.l10n.about),
-                    subtitle: Text('${context.l10n.version} 1.1.1 (5)'),
+                    subtitle: Text('${context.l10n.version} 1.1.2 (6)'),
                   ),
                 ],
               ),

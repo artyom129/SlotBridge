@@ -12,10 +12,10 @@ class ApiClient {
             BaseOptions(
               baseUrl: AppConfig.apiBaseUrl,
               connectTimeout: Duration(
-                seconds: AppConfig.isProduction ? 30 : 12,
+                seconds: AppConfig.isProduction ? 45 : 12,
               ),
               receiveTimeout: Duration(
-                seconds: AppConfig.isProduction ? 90 : 20,
+                seconds: AppConfig.isProduction ? 120 : 20,
               ),
               sendTimeout: Duration(seconds: AppConfig.isProduction ? 30 : 20),
               contentType: Headers.jsonContentType,

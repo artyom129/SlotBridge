@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors/app_exception.dart';
 import '../../core/providers.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
@@ -24,6 +27,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   bool _confirming = false;
   bool _confirmationError = false;
   bool _hasError = false;
+  bool _waitingForColdStart = false;
+  bool _retryingAutomatically = false;
+  String? _activeQuickAction;
+  Timer? _slowRequestTimer;
 
   bool get _isEnglish => Localizations.localeOf(context).languageCode == 'en';
 
@@ -45,12 +52,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   Future<void> _send([String? value]) async {
     final text = (value ?? _inputController.text).trim();
-    await _submitMessage(text, appendUserMessage: true);
+    await _submitMessage(text, appendUserMessage: true, quickAction: value);
   }
 
   Future<void> _submitMessage(
     String text, {
     required bool appendUserMessage,
+    String? quickAction,
   }) async {
     if (text.isEmpty || _loading) return;
     FocusManager.instance.primaryFocus?.unfocus();
@@ -66,20 +74,20 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       _lastFailedMessage = text;
       _confirmationToken = null;
       _items = [];
+      _activeQuickAction = quickAction;
+      _waitingForColdStart = false;
+      _retryingAutomatically = false;
+    });
+    _slowRequestTimer?.cancel();
+    _slowRequestTimer = Timer(const Duration(seconds: 8), () {
+      if (mounted && _loading) {
+        setState(() => _waitingForColdStart = true);
+      }
     });
     _scrollToBottom();
 
     try {
-      final raw = await ref
-          .read(apiClientProvider)
-          .post(
-            '/ai/chat',
-            data: {
-              'message': text,
-              'locale': _isEnglish ? 'en' : 'ru',
-              'state': _conversationState,
-            },
-          );
+      final raw = await _postChatWithRetry(text);
       if (!mounted) return;
       final response = (raw as Map).cast<String, dynamic>();
       final responseText = response['text']?.toString().trim() ?? '';
@@ -107,11 +115,49 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         _confirmationError = false;
       });
     } finally {
+      _slowRequestTimer?.cancel();
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _activeQuickAction = null;
+          _waitingForColdStart = false;
+          _retryingAutomatically = false;
+        });
         _scrollToBottom();
       }
     }
+  }
+
+  Future<dynamic> _postChatWithRetry(String text) async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await ref
+            .read(apiClientProvider)
+            .post(
+              '/ai/chat',
+              data: {
+                'message': text,
+                'locale': _isEnglish ? 'en' : 'ru',
+                'state': _conversationState,
+              },
+            );
+      } catch (error) {
+        if (attempt == 1 || !_isTemporaryAiError(error)) rethrow;
+        if (mounted) {
+          setState(() => _retryingAutomatically = true);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+      }
+    }
+    throw StateError('AI retry exhausted');
+  }
+
+  bool _isTemporaryAiError(Object error) {
+    if (error is! AppException) return false;
+    return error.code == 'timeout' ||
+        error.code == 'connection_error' ||
+        error.code == 'AI_UNAVAILABLE' ||
+        const {502, 503, 504}.contains(error.statusCode);
   }
 
   Future<void> _confirm() async {
@@ -194,6 +240,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
 
   @override
   void dispose() {
+    _slowRequestTimer?.cancel();
     _inputController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -212,28 +259,34 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             constraints: const BoxConstraints(maxWidth: 720),
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _isEnglish
+                          ? 'Manage bookings with a message'
+                          : 'Запишитесь обычным сообщением',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+                _QuickActions(
+                  actions: _quickActions,
+                  enabled: !_loading,
+                  activeAction: _activeQuickAction,
+                  onPressed: _send,
+                ),
+                const SizedBox(height: 6),
                 Expanded(
                   child: ListView(
                     key: const Key('aiConversationList'),
                     controller: _scrollController,
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     children: [
-                      Text(
-                        _isEnglish
-                            ? 'Manage bookings with a message'
-                            : 'Запишитесь обычным сообщением',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 12),
-                      _QuickActions(
-                        actions: _quickActions,
-                        enabled: !_loading,
-                        onPressed: _send,
-                      ),
-                      const SizedBox(height: 18),
                       if (_messages.isEmpty && !_loading)
                         _IntroCard(isEnglish: _isEnglish),
                       ..._messages.map(
@@ -275,6 +328,14 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                                       ? (_isEnglish
                                             ? 'Confirming action…'
                                             : 'Подтверждаем действие…')
+                                      : _retryingAutomatically
+                                      ? (_isEnglish
+                                            ? 'Retrying the connection…'
+                                            : 'Повторно подключаемся…')
+                                      : _waitingForColdStart
+                                      ? (_isEnglish
+                                            ? 'The server is starting. This may take a little longer…'
+                                            : 'Сервер запускается. Это может занять немного больше времени…')
                                       : (_isEnglish
                                             ? 'SlotBridge AI is thinking…'
                                             : 'SlotBridge AI думает…'),
@@ -309,41 +370,69 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.actions,
     required this.enabled,
+    required this.activeAction,
     required this.onPressed,
   });
 
   final List<String> actions;
   final bool enabled;
+  final String? activeAction;
   final ValueChanged<String> onPressed;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final buttonWidth = constraints.maxWidth < 360
-          ? constraints.maxWidth
-          : (constraints.maxWidth - 8) / 2;
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var index = 0; index < actions.length; index++)
-            SizedBox(
-              width: buttonWidth,
-              height: 52,
-              child: OutlinedButton(
-                key: Key('aiQuickAction-$index'),
-                onPressed: enabled ? () => onPressed(actions[index]) : null,
-                child: Text(
-                  actions[index],
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      );
-    },
+  Widget build(BuildContext context) => SizedBox(
+    height: 56,
+    child: ListView.separated(
+      key: const Key('aiQuickActionsList'),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      scrollDirection: Axis.horizontal,
+      itemCount: actions.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (context, index) => SizedBox(
+        width: 148,
+        height: 56,
+        child: OutlinedButton(
+          key: Key('aiQuickAction-$index'),
+          onPressed: enabled ? () => onPressed(actions[index]) : null,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(48, 56),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            tapTargetSize: MaterialTapTargetSize.padded,
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 150),
+            child: activeAction == actions[index]
+                ? Row(
+                    key: const ValueKey('loading'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          actions[index],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    actions[index],
+                    key: const ValueKey('label'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
