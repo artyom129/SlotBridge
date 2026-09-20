@@ -112,7 +112,7 @@ def _gemini(settings, system, contents):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
     request_json = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "tools": TOOLS, "toolConfig": {"functionCallingConfig": {"mode": "AUTO"}}}
     timeout = httpx.Timeout(40.0, connect=10.0)
-    for attempt in range(1, 3):
+    for attempt in range(1, 4):
         try:
             response = httpx.post(
                 url,
@@ -154,8 +154,9 @@ def _gemini(settings, system, contents):
                 upstream_status=status,
                 attempt=attempt,
             )
-            if attempt < 2:
-                time_module.sleep(0.5)
+            retry_limit = 3 if status == 429 else 2
+            if attempt < retry_limit:
+                time_module.sleep(_gemini_retry_delay(response, attempt))
                 continue
             code = (
                 "AI_GEMINI_RATE_LIMIT"
@@ -244,6 +245,32 @@ def _gemini(settings, system, contents):
             )
         return data
     raise AssertionError("Gemini retry loop exhausted")
+
+
+def _gemini_retry_delay(response, attempt):
+    retry_after = response.headers.get("retry-after")
+    if retry_after:
+        try:
+            return min(max(float(retry_after), 0.0), 30.0)
+        except ValueError:
+            pass
+    try:
+        details = response.json().get("error", {}).get("details", [])
+        retry_info = next(
+            (
+                item
+                for item in details
+                if isinstance(item, dict)
+                and str(item.get("@type", "")).endswith("RetryInfo")
+            ),
+            None,
+        )
+        raw_delay = str((retry_info or {}).get("retryDelay", "")).rstrip("s")
+        if raw_delay:
+            return min(max(float(raw_delay), 0.0), 30.0)
+    except (AttributeError, TypeError, ValueError):
+        pass
+    return 2.0 if attempt == 1 else 5.0
 
 
 def _valid_gemini_response(data):

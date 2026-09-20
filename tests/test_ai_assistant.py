@@ -94,7 +94,7 @@ def test_gemini_timeout_retries_then_succeeds(monkeypatch):
 @pytest.mark.parametrize(
     ("status_code", "expected_code", "expected_attempts"),
     [
-        (429, "AI_GEMINI_RATE_LIMIT", 2),
+        (429, "AI_GEMINI_RATE_LIMIT", 3),
         (503, "AI_GEMINI_UNAVAILABLE", 2),
         (403, "AI_GEMINI_AUTH", 1),
         (404, "AI_GEMINI_MODEL_UNAVAILABLE", 1),
@@ -132,6 +132,41 @@ def test_gemini_invalid_response_is_classified(monkeypatch):
         ai._gemini(_settings(), "safe system", [{"role": "user", "parts": [{"text": "hello"}]}])
     assert raised.value.status_code == 502
     assert raised.value.detail["code"] == "AI_INVALID_RESPONSE"
+
+
+def test_gemini_rate_limit_respects_provider_retry_delay(monkeypatch):
+    delays = []
+    responses = [
+        _gemini_response(
+            429,
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                            "retryDelay": "7s",
+                        }
+                    ]
+                }
+            },
+        ),
+        _gemini_response(200, _valid_response()),
+    ]
+    monkeypatch.setattr(
+        ai.httpx,
+        "post",
+        lambda *_args, **_kwargs: responses.pop(0),
+    )
+    monkeypatch.setattr(ai.time_module, "sleep", delays.append)
+
+    result = ai._gemini(
+        _settings(),
+        "safe system",
+        [{"role": "user", "parts": [{"text": "hello"}]}],
+    )
+
+    assert result == _valid_response()
+    assert delays == [7.0]
 
 
 def test_gemini_logs_only_safe_failure_metadata(monkeypatch, caplog):

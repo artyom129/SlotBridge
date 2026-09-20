@@ -9,6 +9,7 @@ import '../../core/providers.dart';
 enum AiFailureKind {
   timeout,
   backendUnavailable,
+  rateLimited,
   geminiUnavailable,
   auth,
   invalidResponse,
@@ -32,6 +33,9 @@ AiFailureKind classifyAiFailure(Object error) {
   if (error.code == 'AI_INVALID_RESPONSE' ||
       error.code == 'AI_GEMINI_REQUEST_REJECTED') {
     return AiFailureKind.invalidResponse;
+  }
+  if (error.code == 'AI_GEMINI_RATE_LIMIT') {
+    return AiFailureKind.rateLimited;
   }
   if (error.code == 'AI_UNAVAILABLE' ||
       (error.code?.startsWith('AI_GEMINI_') ?? false)) {
@@ -203,6 +207,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       'AI_GEMINI_AUTH',
       'AI_GEMINI_MODEL_UNAVAILABLE',
       'AI_GEMINI_REQUEST_REJECTED',
+      'AI_GEMINI_RATE_LIMIT',
       'AI_INVALID_RESPONSE',
     }.contains(error.code)) {
       return false;
@@ -213,7 +218,6 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           'AI_UNAVAILABLE',
           'AI_GEMINI_TIMEOUT',
           'AI_GEMINI_NETWORK',
-          'AI_GEMINI_RATE_LIMIT',
           'AI_GEMINI_UNAVAILABLE',
         }.contains(error.code) ||
         const {502, 503, 504}.contains(error.statusCode);
@@ -683,6 +687,10 @@ class _AiErrorCard extends StatelessWidget {
       'Could not reach SlotBridge. Check your connection and try again.',
     (false, AiFailureKind.backendUnavailable) =>
       'Не удалось связаться со SlotBridge. Проверьте интернет и повторите.',
+    (true, AiFailureKind.rateLimited) =>
+      'Gemini is receiving too many requests. Wait a moment and try again.',
+    (false, AiFailureKind.rateLimited) =>
+      'Gemini получил слишком много запросов. Подождите немного и повторите.',
     (true, AiFailureKind.geminiUnavailable) =>
       'Gemini is temporarily unavailable. Regular booking still works.',
     (false, AiFailureKind.geminiUnavailable) =>

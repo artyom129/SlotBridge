@@ -85,7 +85,7 @@ void main() {
           statusCode: 503,
         ),
       ),
-      AiFailureKind.geminiUnavailable,
+      AiFailureKind.rateLimited,
     );
     expect(
       classifyAiFailure(const AppException('Unauthorized', statusCode: 401)),
@@ -316,5 +316,36 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('aiRetryButton')), findsNothing);
+  });
+
+  testWidgets('rate limit is not amplified by an immediate client retry', (
+    tester,
+  ) async {
+    final api = _FakeApiClient([
+      () async => throw const AppException(
+        'Rate limited',
+        code: 'AI_GEMINI_RATE_LIMIT',
+        statusCode: 503,
+      ),
+    ]);
+    await tester.pumpWidget(_app(api));
+    await tester.tap(find.byKey(const Key('aiQuickAction-0')));
+    await tester.pumpAndSettle();
+
+    expect(api.calls, 1);
+    expect(
+      find.text(
+        'Gemini получил слишком много запросов. '
+        'Подождите немного и повторите.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('aiRetryButton')), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('aiQuickAction-1')))
+          .onPressed,
+      isNotNull,
+    );
   });
 }
