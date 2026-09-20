@@ -195,6 +195,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       icon: const Icon(Icons.add_rounded),
                       label: Text(context.l10n.bookAppointment),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      key: const Key('startJourneyButton'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white70),
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: () => context.push('/journey'),
+                      icon: const Icon(Icons.route_rounded),
+                      label: Text(
+                        Localizations.localeOf(context).languageCode == 'en'
+                            ? 'Several services in one visit'
+                            : 'Несколько услуг за один визит',
+                      ),
+                    ),
                   ],
                 ),
               ),

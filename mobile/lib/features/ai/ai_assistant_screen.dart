@@ -575,6 +575,68 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rawSteps = item['steps'];
+    if (item['strategy'] != null && rawSteps is List) {
+      final isEnglish = Localizations.localeOf(context).languageCode == 'en';
+      final strategy = item['strategy']?.toString();
+      final title = switch (strategy) {
+        'FASTEST' => isEnglish ? 'Fastest' : 'Быстрее всего',
+        'EARLIEST' => isEnglish ? 'Earliest possible' : 'Как можно раньше',
+        _ => isEnglish ? 'Fewer specialists' : 'Меньше сотрудников',
+      };
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              ...rawSteps.whereType<Map>().map(
+                (step) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 96,
+                        child: Text(
+                          step['time']?.toString() ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${step['service'] ?? ''}\n${step['employee'] ?? ''}',
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    isEnglish
+                        ? 'Total: ${item['total_minutes']} min'
+                        : 'Всего: ${item['total_minutes']} мин',
+                  ),
+                  Text(
+                    isEnglish
+                        ? 'Waiting: ${item['wait_minutes']} min'
+                        : 'Ожидание: ${item['wait_minutes']} мин',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final title = (item['time'] ?? item['service'] ?? item['name'] ?? '')
         .toString();
     final subtitle = item['employee']?.toString();

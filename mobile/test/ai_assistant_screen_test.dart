@@ -348,4 +348,46 @@ void main() {
       isNotNull,
     );
   });
+
+  testWidgets('multi-service journey card fits a small dark screen', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = _FakeApiClient([
+      () async => {
+        'text': 'Нашёл варианты маршрута',
+        'state': <String, dynamic>{'intent': 'MULTI_SERVICE_JOURNEY'},
+        'items': [
+          {
+            'strategy': 'FASTEST',
+            'total_minutes': 95,
+            'wait_minutes': 5,
+            'employee_count': 2,
+            'steps': [
+              {
+                'time': '16:00–16:40',
+                'service': 'Очень длинное название услуги для проверки',
+                'employee': 'Очень длинное имя сотрудника',
+              },
+              {
+                'time': '16:45–17:35',
+                'service': 'Консультация',
+                'employee': 'Мария',
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    await tester.pumpWidget(_app(api, dark: true));
+    await tester.tap(find.byKey(const Key('aiQuickAction-0')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Быстрее всего'), findsOneWidget);
+    expect(find.text('Ожидание: 5 мин'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

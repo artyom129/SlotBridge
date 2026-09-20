@@ -75,6 +75,12 @@ class BookingCreateResult:
     replayed: bool
 
 
+@dataclass(frozen=True)
+class JourneyBookingResult:
+    appointments: list[Appointment]
+    replayed: bool
+
+
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
@@ -235,6 +241,167 @@ class BookingService:
                 409,
             ) from None
         return BookingCreateResult(appointment, replayed=False)
+
+    def create_journey(
+        self,
+        client: User,
+        *,
+        branch_id: UUID,
+        steps: list[tuple[UUID, UUID, datetime]],
+        client_note: str | None,
+        idempotency_key: str,
+    ) -> JourneyBookingResult:
+        if client.role is not UserRole.CLIENT:
+            raise BookingError(
+                "CLIENT_ROLE_REQUIRED", "Only clients can create appointments", 403
+            )
+        key = idempotency_key.strip()
+        if not key:
+            raise BookingError(
+                "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key must not be blank", 422
+            )
+        if not 2 <= len(steps) <= 6:
+            raise BookingError(
+                "JOURNEY_SERVICE_COUNT_INVALID",
+                "Choose between two and six services",
+                422,
+            )
+        self._lock_idempotency_key(client.id, f"journey:{key}")
+        step_keys = [
+            f"journey:{sha256(key.encode()).hexdigest()}:{index}"
+            for index in range(len(steps))
+        ]
+        fingerprints = [
+            _create_request_fingerprint(
+                branch_id,
+                employee_id,
+                service_id,
+                _as_utc(starts_at),
+                client_note,
+            )
+            for service_id, employee_id, starts_at in steps
+        ]
+        existing = [
+            self._appointment_by_idempotency(client.id, step_key)
+            for step_key in step_keys
+        ]
+        if any(existing):
+            if not all(existing):
+                raise BookingError(
+                    "JOURNEY_IDEMPOTENCY_CONFLICT",
+                    "The journey retry state is incomplete",
+                    409,
+                )
+            appointments = [item for item in existing if item is not None]
+            for appointment, fingerprint in zip(
+                appointments, fingerprints, strict=True
+            ):
+                self._ensure_same_create_request(appointment, fingerprint)
+            return JourneyBookingResult(appointments, replayed=True)
+
+        branch, organization = self._resolve_client_branch(client, branch_id)
+        prepared: list[tuple[UUID, UUID, datetime, datetime]] = []
+        previous_end: datetime | None = None
+        for service_id, employee_id, starts_at in steps:
+            start_utc = _as_utc(starts_at)
+            if start_utc <= self._now():
+                raise BookingError(
+                    "BOOKING_IN_PAST", "Appointments cannot be booked in the past", 422
+                )
+            if previous_end is not None and start_utc < previous_end:
+                raise BookingError(
+                    "JOURNEY_STEPS_OVERLAP",
+                    "Journey steps must be ordered and non-overlapping",
+                    422,
+                )
+            try:
+                end_utc = self._validate_target_slot(
+                    branch,
+                    organization,
+                    employee_id,
+                    service_id,
+                    start_utc,
+                )
+            except BookingError as error:
+                if error.status_code == 409:
+                    raise BookingError(
+                        "JOURNEY_CONFLICT",
+                        "One journey step is no longer available; recalculate the route",
+                        409,
+                    ) from None
+                raise
+            prepared.append((service_id, employee_id, start_utc, end_utc))
+            previous_end = end_utc
+
+        appointments: list[Appointment] = []
+        for index, (service_id, employee_id, starts_at, ends_at) in enumerate(
+            prepared
+        ):
+            appointment = Appointment(
+                id=uuid4(),
+                organization_id=organization.id,
+                branch_id=branch.id,
+                client_user_id=client.id,
+                employee_id=employee_id,
+                service_id=service_id,
+                starts_at=starts_at,
+                ends_at=ends_at,
+                status=AppointmentStatus.BOOKED,
+                idempotency_key=step_keys[index],
+                idempotency_fingerprint=fingerprints[index],
+                client_note=client_note,
+            )
+            self.session.add_all(
+                [
+                    appointment,
+                    AppointmentStatusHistory(
+                        appointment_id=appointment.id,
+                        organization_id=organization.id,
+                        old_status=None,
+                        new_status=AppointmentStatus.BOOKED,
+                        changed_by_user_id=client.id,
+                        reason="Multi-service journey created",
+                    ),
+                    AppointmentAuditLog(
+                        appointment_id=appointment.id,
+                        organization_id=organization.id,
+                        action=AppointmentAuditAction.CREATED,
+                        changed_by_user_id=client.id,
+                        reason="Multi-service journey created",
+                        new_starts_at=starts_at,
+                        new_ends_at=ends_at,
+                    ),
+                ]
+            )
+            appointments.append(appointment)
+        try:
+            self.session.flush()
+        except IntegrityError as error:
+            overlap = _is_overlap_violation(error)
+            self.session.rollback()
+            if overlap:
+                raise BookingError(
+                    "JOURNEY_CONFLICT",
+                    "One journey step is no longer available; recalculate the route",
+                    409,
+                ) from None
+            replayed = [
+                self._appointment_by_idempotency(client.id, step_key)
+                for step_key in step_keys
+            ]
+            if all(replayed):
+                values = [item for item in replayed if item is not None]
+                for appointment, fingerprint in zip(
+                    values, fingerprints, strict=True
+                ):
+                    self._ensure_same_create_request(appointment, fingerprint)
+                return JourneyBookingResult(values, replayed=True)
+            raise BookingError(
+                "JOURNEY_CONFLICT",
+                "The journey could not be created because related data changed",
+                409,
+            ) from None
+        return JourneyBookingResult(appointments, replayed=False)
 
     def list_my(
         self,

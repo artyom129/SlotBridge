@@ -24,6 +24,7 @@ from app.models import (Branch, Employee, EmployeeService, OrganizationMembershi
                         Service, User, WaitlistEntry, WaitlistStatus)
 from app.services.availability import AvailabilityService
 from app.services.booking import BookingError, BookingService
+from app.services.journeys import JourneyPlanner
 from app.services.recommendations import recommend_slots
 
 router = APIRouter(prefix="/ai", tags=["ai-assistant"])
@@ -50,6 +51,7 @@ FUNCTIONS = [
     ("prepare_cancellation", "Prepare cancellation of the nearest appointment", {}),
     ("prepare_waitlist", "Prepare joining the waitlist", {"service_name": {"type": "STRING"}, "employee_name": {"type": "STRING"}, "date": {"type": "STRING"}, "start_time": {"type": "STRING"}}),
     ("explain_unavailability", "Explain from real availability why no slot is shown", {"service_name": {"type": "STRING"}, "employee_name": {"type": "STRING"}, "date": {"type": "STRING"}}),
+    ("plan_multi_service_journey", "Plan one visit containing multiple services. The backend, not the model, chooses real slots and employees.", {"service_names": {"type": "ARRAY", "items": {"type": "STRING"}}, "date": {"type": "STRING"}, "after_time": {"type": "STRING"}, "before_time": {"type": "STRING"}}),
 ]
 TOOLS = [{"functionDeclarations": [{"name": n, "description": d, "parameters": {"type": "OBJECT", "properties": p}} for n, d, p in FUNCTIONS]}]
 ALLOWED = {item[0] for item in FUNCTIONS}
@@ -360,6 +362,62 @@ def _execute(name, args, locale, organization_id, client, session, settings):
         values = BookingService(session).list_my(client, view="upcoming")
         items = [{"service": x.service.name, "employee": x.employee.display_name, "starts_at": x.starts_at.isoformat()} for x in values]
         text = "Ваши ближайшие записи" if locale == "ru" else "Your upcoming appointments"
+    elif name == "plan_multi_service_journey":
+        requested_names = args.get("service_names") or []
+        services = [
+            _service(session, organization_id, str(service_name))
+            for service_name in requested_names
+        ]
+        if len(services) < 2 or any(service is None for service in services):
+            raise HTTPException(
+                404,
+                detail={
+                    "code": "AI_RESOURCE_NOT_FOUND",
+                    "message": "Two or more matching services are required",
+                },
+            )
+        local_date = date.fromisoformat(args["date"])
+        timezone_name, routes = JourneyPlanner(
+            session,
+            settings.availability_slot_interval_minutes,
+        ).plan(
+            client,
+            branch_id=branch.id,
+            service_ids=[service.id for service in services if service is not None],
+            local_date=local_date,
+            after_time=time.fromisoformat(args.get("after_time") or "00:00"),
+            before_time=time.fromisoformat(args.get("before_time") or "23:59"),
+        )
+        items = [
+            {
+                "strategy": route.strategy,
+                "total_minutes": route.total_minutes,
+                "wait_minutes": route.wait_minutes,
+                "employee_count": route.employee_count,
+                "timezone": timezone_name,
+                "steps": [
+                    {
+                        "service": step.service_name,
+                        "employee": step.employee_name,
+                        "time": f"{step.starts_at:%H:%M}–{step.ends_at:%H:%M}",
+                        "starts_at": step.starts_at.isoformat(),
+                        "ends_at": step.ends_at.isoformat(),
+                    }
+                    for step in route.steps
+                ],
+            }
+            for route in routes
+        ]
+        text = (
+            ("Нашёл варианты маршрута" if items else "Подходящий маршрут не найден")
+            if locale == "ru"
+            else ("I found journey options" if items else "No matching journey was found")
+        )
+        state = {
+            "intent": "MULTI_SERVICE_JOURNEY",
+            "services": [service.name for service in services if service is not None],
+            "date": args["date"],
+        }
     elif name in {"get_availability", "explain_unavailability", "prepare_booking", "prepare_waitlist"}:
         service = _service(session, organization_id, args.get("service_name", "")); employee = None if service is None else _employee(session, organization_id, branch.id, args.get("employee_name", ""), service.id)
         if service is None or employee is None: raise HTTPException(404, detail={"code": "AI_RESOURCE_NOT_FOUND", "message": "Service or employee not found"})

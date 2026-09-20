@@ -338,3 +338,76 @@ class WaitlistItem {
         : DateTime.parse(json['matched_starts_at'] as String),
   );
 }
+
+class JourneyStep {
+  const JourneyStep({
+    required this.service,
+    required this.employee,
+    required this.startsAt,
+    required this.endsAt,
+    required this.localStartsAt,
+    required this.localEndsAt,
+  });
+
+  final ResourceSummary service;
+  final ResourceSummary employee;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final DateTime localStartsAt;
+  final DateTime localEndsAt;
+
+  factory JourneyStep.fromJson(JsonMap json) => JourneyStep(
+    service: ResourceSummary.fromJson(json['service'] as JsonMap),
+    employee: ResourceSummary.fromJson(json['employee'] as JsonMap),
+    startsAt: DateTime.parse(json['starts_at'] as String),
+    endsAt: DateTime.parse(json['ends_at'] as String),
+    localStartsAt: parseWallClock(json['local_starts_at'] as String),
+    localEndsAt: parseWallClock(json['local_ends_at'] as String),
+  );
+}
+
+class JourneyRoute {
+  const JourneyRoute({
+    required this.strategy,
+    required this.steps,
+    required this.startsAt,
+    required this.endsAt,
+    required this.totalMinutes,
+    required this.waitMinutes,
+    required this.employeeCount,
+  });
+
+  final String strategy;
+  final List<JourneyStep> steps;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final int totalMinutes;
+  final int waitMinutes;
+  final int employeeCount;
+
+  factory JourneyRoute.fromJson(JsonMap json) => JourneyRoute(
+    strategy: json['strategy'] as String,
+    steps: (json['steps'] as List<dynamic>)
+        .map((item) => JourneyStep.fromJson(item as JsonMap))
+        .toList(growable: false),
+    startsAt: DateTime.parse(json['starts_at'] as String),
+    endsAt: DateTime.parse(json['ends_at'] as String),
+    totalMinutes: json['total_minutes'] as int,
+    waitMinutes: json['wait_minutes'] as int,
+    employeeCount: json['employee_count'] as int,
+  );
+}
+
+class JourneyPlan {
+  const JourneyPlan({required this.timezone, required this.routes});
+
+  final String timezone;
+  final List<JourneyRoute> routes;
+
+  factory JourneyPlan.fromJson(JsonMap json) => JourneyPlan(
+    timezone: json['timezone'] as String,
+    routes: (json['routes'] as List<dynamic>)
+        .map((item) => JourneyRoute.fromJson(item as JsonMap))
+        .toList(growable: false),
+  );
+}

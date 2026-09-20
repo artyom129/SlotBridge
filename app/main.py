@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 
-from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, schedules, version, waitlist, ai
+from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, journeys, schedules, version, waitlist, ai
 from app.config import Settings, get_settings
 from app.core import DB, Service
 from app.dependencies import require_admin
@@ -54,6 +54,7 @@ app.include_router(health_api.router)
 app.include_router(version.router)
 app.include_router(waitlist.router)
 app.include_router(ai.router)
+app.include_router(journeys.router)
 
 STYLE = """
 body{margin:0;background:#071019;color:#eef4fb;font:14px system-ui}*{box-sizing:border-box}

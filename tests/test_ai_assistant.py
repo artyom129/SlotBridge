@@ -6,6 +6,7 @@ import pytest
 import app.api.ai as ai
 from app.config import Settings, get_settings
 from app.main import app
+from app.models import EmployeeService, Service
 from tests.booking_support import auth_headers, create_booking_domain
 
 def _settings():
@@ -230,3 +231,85 @@ def test_ai_auth_error_is_not_reported_as_provider_outage(client):
         json={"message": "Найди время", "locale": "ru", "state": {}},
     )
     assert response.status_code == 401
+
+
+def test_ai_parses_multi_service_intent_but_backend_plans_real_slots(
+    client, session, monkeypatch
+):
+    domain = create_booking_domain(session, duration_minutes=30)
+    second = Service(
+        organization_id=domain.organization.id,
+        name="Consultation",
+        description="Second service",
+        duration_minutes=30,
+        is_active=True,
+    )
+    session.add(second)
+    session.flush()
+    session.add(
+        EmployeeService(
+            employee_id=domain.employee.id,
+            service_id=second.id,
+            organization_id=domain.organization.id,
+        )
+    )
+    session.commit()
+    app.dependency_overrides[get_settings] = _settings
+    calls = 0
+
+    def fake_gemini(_settings_value, _system, _contents):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "role": "model",
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "plan_multi_service_journey",
+                                        "args": {
+                                            "service_names": [
+                                                domain.service.name,
+                                                second.name,
+                                            ],
+                                            "date": "2099-01-05",
+                                            "after_time": "16:00",
+                                            "before_time": "18:00",
+                                        },
+                                    }
+                                }
+                            ],
+                        }
+                    }
+                ]
+            }
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "role": "model",
+                        "parts": [{"text": "Маршрут построен."}],
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(ai, "_gemini", fake_gemini)
+    response = client.post(
+        "/ai/chat",
+        headers=auth_headers(client, domain.client_a),
+        json={
+            "message": "Запиши меня после 16:00 на две услуги",
+            "locale": "ru",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"]["intent"] == "MULTI_SERVICE_JOURNEY"
+    assert len(payload["items"]) == 3
+    assert len(payload["items"][0]["steps"]) == 2
+    assert payload["items"][0]["steps"][0]["starts_at"] == "2099-01-05T16:00:00+00:00"
