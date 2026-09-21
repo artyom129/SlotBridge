@@ -37,6 +37,9 @@ class ApiClient {
 
   final TokenStorage _tokenStorage;
   final Dio _dio;
+  int? _lastResponseStatusCode;
+
+  int? get lastResponseStatusCode => _lastResponseStatusCode;
 
   Future<dynamic> get(
     String path, {
@@ -58,12 +61,15 @@ class ApiClient {
     Map<String, dynamic>? headers,
   }) async {
     try {
-      return (await _dio.post<dynamic>(
+      final response = await _dio.post<dynamic>(
         path,
         data: data,
         options: Options(headers: headers),
-      )).data;
+      );
+      _lastResponseStatusCode = response.statusCode;
+      return response.data;
     } on DioException catch (error) {
+      _lastResponseStatusCode = error.response?.statusCode;
       throw AppException.fromDio(error);
     }
   }

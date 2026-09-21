@@ -23,10 +23,12 @@ AiResultItemType classifyAiResultItem(
   Map<String, dynamic> conversationState,
 ) {
   final explicitType = item['type']?.toString();
-  final explicit = AiResultItemType.values.where(
-    (value) => value.name == explicitType,
-  );
-  if (explicit.isNotEmpty) return explicit.first;
+  if (explicitType != null) {
+    for (final type in AiResultItemType.values) {
+      if (type.name == explicitType) return type;
+    }
+    return AiResultItemType.unknown;
+  }
   if (item['strategy'] != null && item['steps'] is List) {
     return AiResultItemType.journey;
   }
@@ -146,6 +148,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       AiResultItemType.journey => item['strategy']?.toString() ?? value,
       _ => (item['name'] ?? item['time'] ?? value).toString(),
     };
+    _logSafeInteraction('tap received', type: type.name, label: label);
     final nextState = Map<String, dynamic>.from(_conversationState);
     switch (type) {
       case AiResultItemType.service:
@@ -267,18 +270,28 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       final response = raw.cast<String, dynamic>();
       final responseText = response['text']?.toString().trim() ?? '';
       final rawItems = response['items'];
+      final responseState =
+          (response['state'] as Map?)?.cast<String, dynamic>() ?? {};
+      final parsedItems = rawItems is List
+          ? rawItems
+                .whereType<Map>()
+                .map((item) => item.cast<String, dynamic>())
+                .toList(growable: false)
+          : <Map<String, dynamic>>[];
+      for (final item in parsedItems) {
+        final type = classifyAiResultItem(item, responseState);
+        _logSafeInteraction(
+          'item received',
+          type: type.name,
+          label: _safeItemLabel(item, type),
+        );
+      }
       setState(() {
         if (responseText.isNotEmpty) {
           _messages.add((user: false, text: responseText));
         }
-        _conversationState =
-            (response['state'] as Map?)?.cast<String, dynamic>() ?? {};
-        _items = rawItems is List
-            ? rawItems
-                  .whereType<Map>()
-                  .map((item) => item.cast<String, dynamic>())
-                  .toList(growable: false)
-            : [];
+        _conversationState = responseState;
+        _items = parsedItems;
         final token = response['confirmation_token']?.toString().trim();
         _confirmationToken = token == null || token.isEmpty ? null : token;
         _lastFailedMessage = null;
@@ -314,17 +327,28 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   }) async {
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        return await ref
-            .read(apiClientProvider)
-            .post(
-              '/ai/chat',
-              data: {
-                'message': text,
-                'locale': _isEnglish ? 'en' : 'ru',
-                'state': _conversationState,
-                'selection': ?selection,
-              },
-            );
+        if (selection != null) {
+          _logSafeInteraction(
+            'selection payload sent',
+            type: selection['type']?.toString() ?? 'unknown',
+            label: selection['label']?.toString() ?? '',
+          );
+        }
+        final api = ref.read(apiClientProvider);
+        final result = await api.post(
+          '/ai/chat',
+          data: {
+            'message': text,
+            'locale': _isEnglish ? 'en' : 'ru',
+            'state': _conversationState,
+            'selection': ?selection,
+          },
+        );
+        debugPrint(
+          'SlotBridge AI response status='
+          '${api.lastResponseStatusCode ?? 'success'}',
+        );
+        return result;
       } catch (error) {
         if (attempt == 1 || !_isTemporaryAiError(error)) rethrow;
         if (mounted) {
@@ -366,6 +390,26 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       'code=${appError?.code ?? 'invalid_response'} '
       'status=${appError?.statusCode ?? 'none'}',
     );
+  }
+
+  String _safeItemLabel(Map<String, dynamic> item, AiResultItemType type) =>
+      switch (type) {
+        AiResultItemType.appointment =>
+          '${item['service'] ?? ''} · ${item['starts_at'] ?? ''}',
+        AiResultItemType.journey => item['strategy']?.toString() ?? '',
+        _ => (item['name'] ?? item['time'] ?? '').toString(),
+      };
+
+  void _logSafeInteraction(
+    String event, {
+    required String type,
+    required String label,
+  }) {
+    final safeLabel = label.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
+    final shortened = safeLabel.length <= 120
+        ? safeLabel
+        : '${safeLabel.substring(0, 117)}...';
+    debugPrint('SlotBridge AI $event type=$type label=$shortened');
   }
 
   Future<void> _confirm() async {
@@ -526,11 +570,17 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                                     '')
                                 .toString();
                         final resultKey = '${type.name}:${entry.key}:$value';
+                        final selectable =
+                            type != AiResultItemType.unknown &&
+                            value.trim().isNotEmpty;
                         return _ResultCard(
                           key: ValueKey('aiResult-${type.name}-${entry.key}'),
                           item: entry.value,
                           type: type,
-                          enabled: !_loading && _confirmationToken == null,
+                          enabled:
+                              selectable &&
+                              !_loading &&
+                              _confirmationToken == null,
                           selected: _activeResultKey == resultKey,
                           onTap: () =>
                               _selectResultItem(entry.value, entry.key),
@@ -871,11 +921,13 @@ class _ResultCard extends StatelessWidget {
         subtitle: subtitle == null
             ? null
             : Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-        trailing: _ResultTrailing(
-          enabled: enabled,
-          selected: selected,
-          isEnglish: isEnglish,
-        ),
+        trailing: type == AiResultItemType.unknown
+            ? null
+            : _ResultTrailing(
+                enabled: enabled,
+                selected: selected,
+                isEnglish: isEnglish,
+              ),
       ),
     );
   }

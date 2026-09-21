@@ -618,4 +618,43 @@ void main() {
     });
     await tester.pumpAndSettle();
   });
+
+  testWidgets('unsupported explicit item is rendered without a tap action', (
+    tester,
+  ) async {
+    final api = _FakeApiClient([
+      () async => {
+        'text': 'Дополнительная информация',
+        'state': <String, dynamic>{},
+        'items': [
+          {'type': 'unsupported', 'name': 'Неизвестный вариант'},
+        ],
+      },
+    ]);
+    await tester.pumpWidget(_app(api));
+
+    await tester.tap(find.byKey(const Key('aiQuickAction-0')));
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const Key('aiResult-unknown-0'));
+    expect(card, findsOneWidget);
+    expect(
+      tester
+          .widget<ListTile>(
+            find.descendant(of: card, matching: find.byType(ListTile)),
+          )
+          .onTap,
+      isNull,
+    );
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.byIcon(Icons.chevron_right_rounded),
+      ),
+      findsNothing,
+    );
+    await tester.tap(card);
+    await tester.pump();
+    expect(api.calls, 1);
+  });
 }
