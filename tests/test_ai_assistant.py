@@ -164,7 +164,7 @@ def test_ai_rejects_stale_slot_selection_before_calling_gemini(
     assert calls == 0
 
 
-def test_ai_journey_selection_is_deterministic_and_never_mutates(
+def test_ai_journey_selection_requires_confirmation_before_atomic_mutation(
     client, session, monkeypatch
 ):
     domain = create_booking_domain(session)
@@ -198,7 +198,23 @@ def test_ai_journey_selection_is_deterministic_and_never_mutates(
 
     assert response.status_code == 200
     assert response.json()["state"]["selected_journey"] == "FASTEST"
-    assert "confirmation_token" not in response.json()
+    assert response.json()["state"]["pending_action"] == "CREATE_JOURNEY"
+    assert response.json()["confirmation_token"]
+    before = client.get(
+        "/appointments/me?view=upcoming",
+        headers=auth_headers(client, domain.client_a),
+    )
+    assert before.status_code == 200
+    assert before.json()["items"] == []
+
+    confirmed = client.post(
+        "/ai/confirm",
+        headers=auth_headers(client, domain.client_a),
+        json={"confirmation_token": response.json()["confirmation_token"]},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["status"] == "completed"
+    assert len(confirmed.json()["appointment_ids"]) == 2
     assert calls == 0
 
 
