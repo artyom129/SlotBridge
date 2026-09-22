@@ -8,6 +8,7 @@ import '../../core/providers.dart';
 
 enum AiFailureKind {
   timeout,
+  network,
   backendUnavailable,
   rateLimited,
   geminiUnavailable,
@@ -57,7 +58,13 @@ AiFailureKind classifyAiFailure(Object error) {
   if (error.code == 'timeout' || error.code == 'AI_GEMINI_TIMEOUT') {
     return AiFailureKind.timeout;
   }
-  if (error.code == 'connection_error' || error.code == 'AI_GEMINI_NETWORK') {
+  if (error.code == 'connection_error') {
+    return AiFailureKind.network;
+  }
+  if (error.code == 'AI_GEMINI_NETWORK') {
+    return AiFailureKind.geminiUnavailable;
+  }
+  if (error.code == 'AI_UNAVAILABLE') {
     return AiFailureKind.backendUnavailable;
   }
   if (error.code == 'AI_INVALID_RESPONSE' ||
@@ -104,6 +111,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   bool _retryingAutomatically = false;
   String? _activeQuickAction;
   String? _activeResultKey;
+  String? _selectionInFlightKey;
   Timer? _slowRequestTimer;
 
   bool get _isEnglish => Localizations.localeOf(context).languageCode == 'en';
@@ -148,6 +156,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       AiResultItemType.journey => item['strategy']?.toString() ?? value,
       _ => (item['name'] ?? item['time'] ?? value).toString(),
     };
+    final selectionKey = '${type.name}:$value';
+    if (_selectionInFlightKey == selectionKey) return;
     _logSafeInteraction('tap received', type: type.name, label: label);
     final nextState = Map<String, dynamic>.from(_conversationState);
     switch (type) {
@@ -155,14 +165,12 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         nextState
           ..['service'] = label
           ..remove('employee')
-          ..remove('time')
           ..remove('candidate_slots')
           ..remove('pending_action');
         break;
       case AiResultItemType.employee:
         nextState
           ..['employee'] = label
-          ..remove('time')
           ..remove('candidate_slots')
           ..remove('pending_action');
         break;
@@ -179,14 +187,18 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         return;
     }
     final prompt = _selectionPrompt(type, label);
-    setState(() => _activeResultKey = '${type.name}:$index:$value');
+    setState(() {
+      _selectionInFlightKey = selectionKey;
+      _activeResultKey = '${type.name}:$index:$value';
+      _items = [];
+    });
     await _submitMessage(
       prompt,
       appendUserMessage: true,
       displayText: _isEnglish ? 'Selected: $label' : 'Выбрано: $label',
       selection: {'type': type.name, 'value': value, 'label': label},
       conversationState: nextState,
-      clearItems: false,
+      clearItems: true,
     );
   }
 
@@ -313,6 +325,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           _loading = false;
           _activeQuickAction = null;
           _activeResultKey = null;
+          _selectionInFlightKey = null;
           _waitingForColdStart = false;
           _retryingAutomatically = false;
         });
@@ -469,7 +482,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         message,
         appendUserMessage: false,
         selection: _lastFailedSelection,
-        clearItems: _lastFailedSelection == null,
+        clearItems: true,
       );
     }
   }
@@ -1054,10 +1067,14 @@ class _AiErrorCard extends StatelessWidget {
       'The AI request took too long. Please try again.',
     (false, AiFailureKind.timeout) =>
       'AI не ответил вовремя. Попробуйте ещё раз.',
+    (true, AiFailureKind.network) =>
+      'No internet connection. Check your connection and try again.',
+    (false, AiFailureKind.network) =>
+      'Нет подключения к интернету. Проверьте сеть и повторите.',
     (true, AiFailureKind.backendUnavailable) =>
-      'Could not reach SlotBridge. Check your connection and try again.',
+      'SlotBridge is temporarily unavailable. Please try again.',
     (false, AiFailureKind.backendUnavailable) =>
-      'Не удалось связаться со SlotBridge. Проверьте интернет и повторите.',
+      'SlotBridge временно недоступен. Попробуйте ещё раз.',
     (true, AiFailureKind.rateLimited) =>
       'Gemini is receiving too many requests. Wait a moment and try again.',
     (false, AiFailureKind.rateLimited) =>
