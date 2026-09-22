@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import os
+import re
 from html import escape
 from typing import Annotated
 
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, journeys, schedules, version, waitlist, ai
@@ -18,7 +20,13 @@ from app.config import Settings, get_settings
 from app.core import DB, Service
 from app.database import get_db
 from app.dependencies import require_admin, require_client
-from app.models import User
+from app.models import (
+    Employee,
+    EmployeeService,
+    OrganizationMembership,
+    Service as ServiceModel,
+    User,
+)
 from app.webhook_security import verify_webhook
 
 load_dotenv()
@@ -49,6 +57,237 @@ if settings.cors_origins:
     )
 
 
+_WEEKDAY_SHORTCUTS = {
+    "пн": "понедельник",
+    "вт": "вторник",
+    "ср": "среда",
+    "чт": "четверг",
+    "пт": "пятница",
+    "сб": "суббота",
+    "вс": "воскресенье",
+}
+
+
+def _expand_weekday_shortcuts(message: str) -> str:
+    expanded = message
+    for short, full in _WEEKDAY_SHORTCUTS.items():
+        expanded = re.sub(
+            rf"(?<!\w){re.escape(short)}(?:\.)?(?!\w)",
+            full,
+            expanded,
+            flags=re.IGNORECASE,
+        )
+    return expanded
+
+
+def _client_organization_id(session: Session, client: User):
+    return session.scalar(
+        select(OrganizationMembership.organization_id).where(
+            OrganizationMembership.user_id == client.id
+        )
+    )
+
+
+def _requested_employee_from_message(
+    session: Session,
+    organization_id,
+    branch_id,
+    message: str,
+) -> str | None:
+    words = re.findall(r"[a-zа-яё]+", message.casefold())
+    if not words:
+        return None
+
+    employees = list(
+        session.scalars(
+            select(Employee).where(
+                Employee.organization_id == organization_id,
+                Employee.branch_id == branch_id,
+                Employee.is_active.is_(True),
+            )
+        )
+    )
+    for employee in employees:
+        label = employee.display_name.strip()
+        lowered_label = label.casefold()
+        if lowered_label and lowered_label in message.casefold():
+            return label
+
+        base = re.split(r"\s+[—–-]\s+", lowered_label, maxsplit=1)[0].strip()
+        aliases = {base}
+        if base:
+            aliases.add(base.split()[0])
+
+        for alias in aliases:
+            if len(alias) < 3:
+                continue
+            stems = {alias}
+            if alias[-1:] in {"а", "я", "ь", "й"} and len(alias) > 3:
+                stems.add(alias[:-1])
+            for stem in stems:
+                if len(stem) < 3:
+                    continue
+                if any(
+                    word.startswith(stem) and len(word) - len(stem) <= 3
+                    for word in words
+                ):
+                    return label
+    return None
+
+
+def _attach_guard_state(result: dict, state: dict) -> dict:
+    if state.get("requested_employee"):
+        response_state = dict(result.get("state") or {})
+        response_state["requested_employee"] = state["requested_employee"]
+        result["state"] = response_state
+    if isinstance(result.get("text"), str):
+        result["text"] = result["text"].replace("**", "")
+    return result
+
+
+def _handle_requested_service_selection(
+    *,
+    payload: ai.ChatRequest,
+    state: dict,
+    client: User,
+    session: Session,
+    app_settings: Settings,
+    organization_id,
+):
+    requested_employee = state.get("requested_employee")
+    if not requested_employee or not state.get("service"):
+        return None
+
+    branch = ai._scope(session, organization_id)
+    service = session.scalar(
+        select(ServiceModel).where(
+            ServiceModel.organization_id == organization_id,
+            ServiceModel.name == state["service"],
+            ServiceModel.is_active.is_(True),
+        )
+    )
+    if service is None:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "AI_STALE_SELECTION",
+                "message": "The selected service is no longer available",
+            },
+        )
+
+    employee = session.scalar(
+        select(Employee)
+        .join(EmployeeService, EmployeeService.employee_id == Employee.id)
+        .where(
+            Employee.organization_id == organization_id,
+            Employee.branch_id == branch.id,
+            Employee.is_active.is_(True),
+            Employee.display_name == requested_employee,
+            EmployeeService.organization_id == organization_id,
+            EmployeeService.service_id == service.id,
+        )
+    )
+    if employee is None:
+        state.pop("employee", None)
+        state.pop("requested_employee", None)
+        result = ai._execute(
+            "find_employees",
+            {"service_name": service.name},
+            payload.locale,
+            organization_id,
+            client,
+            session,
+            app_settings,
+            payload.selection,
+        )
+        result["state"] = {**state, **result.get("state", {})}
+        result.pop("_model_result", None)
+        result["text"] = (
+            "Этот специалист не выполняет выбранную услугу. Выберите другого."
+            if payload.locale == "ru"
+            else "That specialist does not provide this service. Choose another specialist."
+        )
+        return result
+
+    state["employee"] = employee.display_name
+    if not state.get("date"):
+        return {
+            "text": (
+                "На какой день вы хотите записаться?"
+                if payload.locale == "ru"
+                else "What day would you like to book?"
+            ),
+            "items": [],
+            "state": state,
+        }
+
+    availability = ai._execute(
+        "get_availability",
+        {
+            "service_name": service.name,
+            "employee_name": employee.display_name,
+            "date": state["date"],
+            "after_time": state.get("time", ""),
+        },
+        payload.locale,
+        organization_id,
+        client,
+        session,
+        app_settings,
+        payload.selection,
+    )
+    availability["state"] = {**state, **availability.get("state", {})}
+    availability.pop("_model_result", None)
+
+    requested_time = state.get("time")
+    if not requested_time:
+        return _attach_guard_state(availability, state)
+
+    exact_slot = any(
+        item.get("type") == "slot" and item.get("time") == requested_time
+        for item in availability.get("items", [])
+    )
+    if exact_slot:
+        prepared = ai._execute(
+            "prepare_booking",
+            {
+                "service_name": service.name,
+                "employee_name": employee.display_name,
+                "date": state["date"],
+                "start_time": requested_time,
+            },
+            payload.locale,
+            organization_id,
+            client,
+            session,
+            app_settings,
+            payload.selection,
+        )
+        prepared["state"] = {**state, **prepared.get("state", {})}
+        prepared.pop("_model_result", None)
+        prepared["text"] = (
+            f"Время {requested_time} свободно. Подтвердите запись."
+            if payload.locale == "ru"
+            else f"{requested_time} is available. Confirm the booking."
+        )
+        return _attach_guard_state(prepared, state)
+
+    availability["text"] = (
+        (
+            f"{requested_time} занято. Вот ближайшее свободное время."
+            if availability.get("items")
+            else f"На {requested_time} свободных слотов нет."
+        )
+        if payload.locale == "ru"
+        else (
+            f"{requested_time} is unavailable. Here are the nearest free times."
+            if availability.get("items")
+            else f"There are no free slots at {requested_time}."
+        )
+    )
+    return _attach_guard_state(availability, state)
+
+
 @app.post("/ai/chat", include_in_schema=False)
 def ai_chat_guard(
     payload: ai.ChatRequest,
@@ -58,17 +297,59 @@ def ai_chat_guard(
 ):
     state = dict(payload.state)
     selection = payload.selection
-    message = payload.message.strip().casefold()
+    raw_message = payload.message.strip()
+    message = raw_message.casefold()
+    organization_id = _client_organization_id(session, client)
 
     if selection is None and message in {"записаться", "book appointment"}:
         state = {}
 
+    if selection is None and organization_id is not None:
+        branch = ai._scope(session, organization_id)
+        expanded_message = _expand_weekday_shortcuts(raw_message)
+        inferred = ai._infer_booking_context(
+            session,
+            organization_id,
+            expanded_message,
+            branch,
+        )
+        for key in ("date", "time"):
+            if inferred.get(key):
+                state[key] = inferred[key]
+
+        requested_employee = _requested_employee_from_message(
+            session,
+            organization_id,
+            branch.id,
+            raw_message,
+        )
+        if requested_employee:
+            state["employee"] = requested_employee
+            state["requested_employee"] = requested_employee
+
     if selection is not None and selection.type == "service":
-        state.pop("employee", None)
-        state.pop("date", None)
-        state.pop("time", None)
+        state["service"] = selection.label
         state.pop("candidate_slots", None)
         state.pop("pending_action", None)
+        requested_employee = state.get("requested_employee")
+        if requested_employee:
+            state["employee"] = requested_employee
+        else:
+            state.pop("employee", None)
+            state.pop("date", None)
+            state.pop("time", None)
+
+        if organization_id is not None and requested_employee:
+            direct = _handle_requested_service_selection(
+                payload=payload,
+                state=state,
+                client=client,
+                session=session,
+                app_settings=app_settings,
+                organization_id=organization_id,
+            )
+            if direct is not None:
+                return direct
 
     if selection is not None and selection.type == "employee":
         state["employee"] = selection.label
@@ -88,8 +369,8 @@ def ai_chat_guard(
         payload = payload.model_copy(update={"state": state})
 
     result = ai.chat(payload, client, session, app_settings)
-    if isinstance(result, dict) and isinstance(result.get("text"), str):
-        result["text"] = result["text"].replace("**", "")
+    if isinstance(result, dict):
+        result = _attach_guard_state(result, state)
     return result
 
 
