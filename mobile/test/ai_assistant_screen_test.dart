@@ -77,7 +77,7 @@ void main() {
       classifyAiFailure(
         const AppException('Offline', code: 'connection_error'),
       ),
-      AiFailureKind.backendUnavailable,
+      AiFailureKind.network,
     );
     expect(
       classifyAiFailure(
@@ -96,6 +96,16 @@ void main() {
     expect(
       classifyAiFailure(const FormatException('bad response')),
       AiFailureKind.invalidResponse,
+    );
+    expect(
+      classifyAiFailure(
+        const AppException(
+          'Backend validation',
+          code: 'AI_RESOURCE_NOT_FOUND',
+          statusCode: 404,
+        ),
+      ),
+      AiFailureKind.unknown,
     );
   });
 
@@ -597,26 +607,99 @@ void main() {
     await tester.pump();
     await tester.tap(card);
     await tester.pump();
-    await tester.ensureVisible(card);
-    await tester.pump();
-    await tester.tap(card);
-    await tester.pump();
 
     expect(api.calls, 2);
-    expect(
-      tester
-          .widget<ListTile>(
-            find.descendant(of: card, matching: find.byType(ListTile)),
-          )
-          .onTap,
-      isNull,
-    );
+    expect(card, findsNothing);
+    expect(find.text('Выбрано: Стрижка'), findsOneWidget);
     selectionResponse.complete({
       'text': 'Готово',
       'state': <String, dynamic>{'service': 'Стрижка'},
       'items': <dynamic>[],
     });
     await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'employee selection is sent once clears stale cards and keeps context',
+    (tester) async {
+      final selectionResponse = Completer<dynamic>();
+      final api = _FakeApiClient([
+        () async => {
+          'text': 'Выберите сотрудника',
+          'state': <String, dynamic>{
+            'service': 'Стрижка',
+            'date': '2026-09-26',
+            'time': '10:00',
+          },
+          'items': [
+            {'type': 'employee', 'value': 'Алекс', 'name': 'Алекс'},
+          ],
+        },
+        () => selectionResponse.future,
+      ]);
+      await tester.pumpWidget(_app(api));
+      await tester.tap(find.byKey(const Key('aiQuickAction-1')));
+      await tester.pumpAndSettle();
+
+      final card = find.byKey(const Key('aiResult-employee-0'));
+      await tester.tap(card);
+      await tester.tap(card, warnIfMissed: false);
+      await tester.pump();
+
+      expect(api.calls, 2);
+      expect(find.byKey(const Key('aiResult-employee-0')), findsNothing);
+      expect(find.text('Выбрано: Алекс'), findsOneWidget);
+      final payload = api.payloads[1] as Map<String, dynamic>;
+      expect(payload['selection'], {
+        'type': 'employee',
+        'value': 'Алекс',
+        'label': 'Алекс',
+      });
+      expect(
+        payload['state'],
+        allOf(
+          containsPair('service', 'Стрижка'),
+          containsPair('employee', 'Алекс'),
+          containsPair('date', '2026-09-26'),
+          containsPair('time', '10:00'),
+        ),
+      );
+
+      selectionResponse.complete({
+        'text': 'Выберите время',
+        'state': <String, dynamic>{
+          'service': 'Стрижка',
+          'employee': 'Алекс',
+          'date': '2026-09-26',
+          'time': '10:00',
+          'candidate_slots': ['10:00'],
+        },
+        'items': [
+          {'type': 'slot', 'value': '10:00', 'time': '10:00'},
+        ],
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('aiResult-slot-0')), findsOneWidget);
+      expect(find.text('Выбрано: Алекс'), findsOneWidget);
+    },
+  );
+
+  testWidgets('backend error is not shown as an internet error', (
+    tester,
+  ) async {
+    final api = _FakeApiClient([
+      () async => throw const AppException(
+        'Backend validation',
+        code: 'AI_RESOURCE_NOT_FOUND',
+        statusCode: 404,
+      ),
+    ]);
+    await tester.pumpWidget(_app(api));
+    await tester.tap(find.byKey(const Key('aiQuickAction-0')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Проверьте сеть'), findsNothing);
+    expect(find.textContaining('Обычная запись'), findsOneWidget);
   });
 
   testWidgets('unsupported explicit item is rendered without a tap action', (

@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 import httpx
 import pytest
@@ -129,6 +130,87 @@ def test_ai_structured_service_selection_updates_safe_context(
     assert payload["state"]["service"] == domain.service.name
     assert domain.service.name in calls[0][0]
     assert "Structured UI selection: type=service" in str(calls[0][1])
+
+
+def test_ai_preserves_service_weekday_and_time_from_initial_message(
+    client, session, monkeypatch
+):
+    domain = create_booking_domain(session)
+    domain.service.name = "Стрижка"
+    domain.employee.display_name = "Алекс"
+    session.commit()
+    app.dependency_overrides[get_settings] = _settings
+    monkeypatch.setattr(ai, "_local_today", lambda _branch: date(2026, 9, 22))
+    monkeypatch.setattr(
+        ai,
+        "_gemini",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("Known booking context must not call Gemini")
+        ),
+    )
+
+    response = client.post(
+        "/ai/chat",
+        headers=auth_headers(client, domain.client_a),
+        json={
+            "message": "салам нужна стрижка в 10:00, суббота",
+            "locale": "ru",
+            "state": {},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] == {
+        "service": "Стрижка",
+        "date": "2026-09-26",
+        "time": "10:00",
+    }
+    assert payload["items"][0]["type"] == "employee"
+    assert payload["items"][0]["name"] == "Алекс"
+
+
+def test_employee_selection_preserves_context_and_returns_availability_once(
+    client, session, monkeypatch
+):
+    domain = create_booking_domain(session)
+    domain.service.name = "Стрижка"
+    domain.employee.display_name = "Алекс"
+    session.commit()
+    app.dependency_overrides[get_settings] = _settings
+    monkeypatch.setattr(
+        ai,
+        "_gemini",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("Employee selection must use real availability directly")
+        ),
+    )
+
+    response = client.post(
+        "/ai/chat",
+        headers=auth_headers(client, domain.client_a),
+        json={
+            "message": "Я выбрал сотрудника «Алекс».",
+            "locale": "ru",
+            "state": {
+                "service": "Стрижка",
+                "date": "2099-01-05",
+                "time": "10:00",
+            },
+            "selection": {"type": "employee", "value": "Алекс", "label": "Алекс"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"]["service"] == "Стрижка"
+    assert payload["state"]["employee"] == "Алекс"
+    assert payload["state"]["date"] == "2099-01-05"
+    assert payload["state"]["time"] == "10:00"
+    assert payload["items"]
+    assert all(item["type"] == "slot" for item in payload["items"])
+    assert all(item["time"] >= "10:00" for item in payload["items"])
+    assert "confirmation_token" not in payload
 
 
 def test_ai_rejects_stale_slot_selection_before_calling_gemini(
