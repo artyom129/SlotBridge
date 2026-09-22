@@ -67,6 +67,26 @@ _WEEKDAY_SHORTCUTS = {
     "вс": "воскресенье",
 }
 
+_SERVICE_SUFFIXES = (
+    "ая",
+    "яя",
+    "ое",
+    "ее",
+    "ый",
+    "ий",
+    "ой",
+    "ия",
+    "ие",
+    "а",
+    "я",
+    "ы",
+    "и",
+    "у",
+    "ю",
+    "е",
+    "о",
+)
+
 
 def _expand_weekday_shortcuts(message: str) -> str:
     expanded = message
@@ -133,6 +153,59 @@ def _requested_employee_from_message(
                 ):
                     return label
     return None
+
+
+def _requested_service_from_message(
+    session: Session,
+    organization_id,
+    message: str,
+) -> str | None:
+    text = message.casefold()
+    words = re.findall(r"[a-zа-яё]+", text)
+    if not words:
+        return None
+
+    services = list(
+        session.scalars(
+            select(ServiceModel).where(
+                ServiceModel.organization_id == organization_id,
+                ServiceModel.is_active.is_(True),
+            )
+        )
+    )
+    for service in services:
+        label = service.name.strip()
+        lowered_label = label.casefold()
+        if lowered_label and lowered_label in text:
+            return label
+
+        name_words = re.findall(r"[a-zа-яё]+", lowered_label)
+        stems: list[str] = []
+        for name_word in name_words:
+            stem = name_word
+            for suffix in _SERVICE_SUFFIXES:
+                if name_word.endswith(suffix) and len(name_word) - len(suffix) >= 4:
+                    stem = name_word[: -len(suffix)]
+                    break
+            if len(stem) >= 4:
+                stems.append(stem)
+
+        if stems and all(
+            any(
+                word.startswith(stem) and len(word) - len(stem) <= 4
+                for word in words
+            )
+            for stem in stems
+        ):
+            return label
+    return None
+
+
+def _requested_time_from_message(message: str) -> str | None:
+    match = re.search(r"(?<!\d)([01]?\d|2[0-3]):([0-5]?\d)(?!\d)", message)
+    if match is None:
+        return None
+    return f"{int(match.group(1)):02d}:{int(match.group(2)):02d}"
 
 
 def _attach_guard_state(result: dict, state: dict) -> dict:
@@ -317,6 +390,18 @@ def ai_chat_guard(
             if inferred.get(key):
                 state[key] = inferred[key]
 
+        requested_time = _requested_time_from_message(raw_message)
+        if requested_time:
+            state["time"] = requested_time
+
+        requested_service = _requested_service_from_message(
+            session,
+            organization_id,
+            raw_message,
+        )
+        if requested_service:
+            state["service"] = requested_service
+
         requested_employee = _requested_employee_from_message(
             session,
             organization_id,
@@ -326,6 +411,18 @@ def ai_chat_guard(
         if requested_employee:
             state["employee"] = requested_employee
             state["requested_employee"] = requested_employee
+
+        if requested_service and requested_employee:
+            direct = _handle_requested_service_selection(
+                payload=payload,
+                state=state,
+                client=client,
+                session=session,
+                app_settings=app_settings,
+                organization_id=organization_id,
+            )
+            if direct is not None:
+                return direct
 
     if selection is not None and selection.type == "service":
         state["service"] = selection.label
