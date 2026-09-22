@@ -1,4 +1,4 @@
-param([string]$VersionName = '1.1.5', [int]$VersionCode = 9)
+param([string]$VersionName = '1.1.6', [int]$VersionCode = 10)
 $ErrorActionPreference = 'Stop'
 $flutterRoot = 'D:\SlotBridgeAndroidTooling\flutter'
 $dart = Join-Path $flutterRoot 'bin\cache\dart-sdk\bin\dart.exe'
