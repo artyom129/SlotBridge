@@ -1,193 +1,269 @@
 <div align="center">
 
-# ⚖️ SlotBridge Proprietary License
+# ⚖️ SLOTBRIDGE PROPRIETARY SOFTWARE LICENSE
 
-### Лицензия на ограниченное академическое использование
+### Limited Academic Evaluation License · Republic of Kazakhstan
 
-**Республика Казахстан · Версия 2.0 · 23 сентября 2026**
+**Version 3.0 · 23 September 2026**
 
-**© 2026 Artyom Koncha · All Rights Reserved**
+**Copyright © 2026 Artyom Koncha · All Rights Reserved**
 
 </div>
 
 > [!IMPORTANT]
-> **SlotBridge является проприетарным программным обеспечением.** Публичный доступ к репозиторию, передача проекта преподавателю, демонстрация на защите, хранение копии в системах колледжа или иная академическая передача **не означают передачу авторства, исключительных прав или права выдавать проект за работу другого лица или организации**.
+> **SlotBridge is proprietary software.** Public access to this repository, submission of the Project for coursework or academic defense, review by teachers or examiners, storage by an educational institution, possession of a copy, or access to source code **does not transfer authorship, copyright, exclusive rights, ownership, or any broader license** except as expressly stated in this document or required by applicable law.
 
-## ⚖️ Правовой статус
+## Legal Status
 
-| Положение | Статус |
+| Item | Status |
 |---|---|
-| **Автор** | Artyom Koncha |
-| **Правообладатель оригинальных компонентов** | Artyom Koncha |
-| **Проект** | SlotBridge |
-| **Режим лицензирования** | Proprietary / All Rights Reserved |
-| **Разрешённое использование** | академическая проверка и демонстрация, приватный просмотр портфолио |
-| **Атрибуция** | обязательна в пределах применимого права и условий этой лицензии |
-| **Перераспространение / коммерциализация** | запрещены без предварительного письменного разрешения правообладателя |
-| **Применимое право** | законодательство Республики Казахстан |
-
-## 📜 Правовая основа Республики Казахстан
-
-Настоящая лицензия применяется совместно с обязательными нормами законодательства Республики Казахстан и не отменяет права, которые прямо предоставлены законом.
-
-В частности, при подготовке этой редакции учтены положения:
-
-- **Закона Республики Казахстан от 10 июня 1996 года № 6-I «Об авторском праве и смежных правах»** — обновлённого нормативного акта, дата изменения которого в ИПС «Әділет» указана как **20 августа 2026 года**;
-- **Гражданского кодекса Республики Казахстан (Особенная часть)** в части интеллектуальной собственности и авторского права;
-- применимых международных договоров Республики Казахстан.
-
-Ключевые нормы, имеющие значение для SlotBridge:
-
-- **статья 7 Закона** — компьютерные программы являются объектами авторского права; охрана распространяется в том числе на исходный текст и объектный код;
-- **статья 9 Закона** — авторское право возникает в силу факта создания произведения и не требует регистрации или иного специального оформления;
-- **статья 15 Закона** — право авторства и другие личные неимущественные права принадлежат автору; право авторства является неотчуждаемым;
-- **статья 16 Закона** — автору или иному правообладателю принадлежат исключительные имущественные права на использование произведения;
-- **статья 32 Закона** — передача имущественных авторских прав оформляется авторским договором в предусмотренной законом форме;
-- **статья 49 Закона** — предусматривает судебные способы защиты авторских и смежных прав, включая признание права, пресечение нарушения, восстановление положения до нарушения и имущественные требования в предусмотренных законом случаях;
-- **статьи 962–966 Гражданского кодекса** — регулируют возникновение прав на объекты интеллектуальной собственности, личные и имущественные права, исключительные права, их переход и лицензионные договоры;
-- **статья 968 Гражданского кодекса** — исключительное право на результат интеллектуальной творческой деятельности существует независимо от права собственности на материальный носитель;
-- **статьи 977–982 Гражданского кодекса** — регулируют личные неимущественные права автора, имущественные права, начало и срок действия авторского права.
-
-Если какое-либо положение этой лицензии противоречит обязательной норме законодательства Республики Казахстан, применяется обязательная норма закона, а остальные положения лицензии сохраняют силу в максимально допустимом объёме.
-
-## § 1. Термины
-
-**«Проект»** или **«SlotBridge»** — оригинальные охраняемые компоненты проекта SlotBridge, включая исходный код, backend, мобильное приложение, документацию, оригинальную архитектуру, структуру базы данных в той мере, в какой она охраняется законом, пользовательский интерфейс, тексты, графические материалы и иные результаты творческой деятельности, созданные Автором.
-
-**«Автор»** и **«Правообладатель»** — Artyom Koncha в отношении принадлежащих ему оригинальных компонентов SlotBridge.
-
-**«Образовательная организация»** — колледж, университет, школа, академия, учебный центр либо их подразделение, а также преподаватель, экзаменатор, руководитель, сотрудник или представитель, действующий в рамках образовательного процесса.
-
-**«Академическая проверка»** — просмотр, запуск, демонстрация, защита, экзаменационная проверка, оценивание или иное ознакомление с работой Автора исключительно в образовательных целях.
-
-## § 2. Авторство и сохранение прав
-
-Автор сохраняет все принадлежащие ему по закону личные неимущественные и исключительные имущественные права на оригинальные охраняемые компоненты SlotBridge.
-
-Все права, которые прямо не предоставлены настоящей лицензией, **сохраняются за Правообладателем**.
-
-Сам по себе любой из следующих фактов **не является передачей исключительных прав**:
-
-- сдача проекта как курсовой, проектной, дипломной, экзаменационной или иной учебной работы;
-- защита проекта перед преподавателем или комиссией;
-- загрузка проекта в LMS, GitHub, облачное хранилище или внутреннюю систему колледжа;
-- передача APK, исходного кода, архива, ссылки на репозиторий или копии базы данных;
-- хранение копии проекта образовательной организацией;
-- демонстрация проекта на занятии, защите или внутреннем академическом мероприятии.
-
-Передача исключительных имущественных прав возможна только при наличии отдельного юридически действительного основания и в форме, требуемой применимым законодательством.
+| **Project** | SlotBridge |
+| **Author** | Artyom Koncha |
+| **Copyright Holder** | Artyom Koncha, with respect to his original protected contributions |
+| **License Model** | Proprietary · All Rights Reserved |
+| **Permitted Use** | Limited academic evaluation and private portfolio review |
+| **Attribution** | Required as provided below and to the extent required by applicable law |
+| **Redistribution** | Not permitted without prior written authorization |
+| **Commercial Use** | Not permitted without prior written authorization |
+| **Governing Law** | Republic of Kazakhstan |
 
 > [!NOTE]
-> Если существует отдельный подписанный договор, трудовое соглашение, авторский договор или иной документ, который прямо регулирует имущественные права на конкретный результат, его содержание оценивается отдельно в соответствии с применимым законодательством.
+> This License governs only the original copyrightable material owned by the Copyright Holder. Third-party libraries, frameworks, APIs, SDKs, packages, fonts, assets, and other external components remain subject to their own licenses and terms.
 
-## § 3. Разрешение для академической проверки
+---
 
-Правообладатель предоставляет образовательной организации и уполномоченным участникам образовательного процесса ограниченное, неисключительное и непередаваемое право:
+## § 1. Definitions
 
-- открыть и просмотреть проект;
-- запустить приложение и backend;
-- проверить функциональность;
-- продемонстрировать проект в пределах учебной проверки;
-- хранить копию только в объёме, объективно необходимом для академической проверки и внутреннего подтверждения результатов обучения.
+For purposes of this License:
 
-Это разрешение **не предоставляет право собственности на проект и не предоставляет право использовать SlotBridge за пределами академической проверки**.
+**“Project”** or **“SlotBridge”** means the original protected components of the software project known as SlotBridge, including, where protectable by law, its source code, backend, mobile application, documentation, original software architecture, user interface, written materials, graphics, database structure and arrangement, and other original works created by the Author.
 
-## § 4. Обязательное указание авторства
+**“Author”** and **“Copyright Holder”** mean **Artyom Koncha**, solely with respect to rights legally belonging to him.
 
-При любом использовании SlotBridge, для которого указание автора практически возможно и требуется настоящей лицензией либо применимым законом, должна сохраняться корректная атрибуция:
+**“Educational Institution”** means any college, university, school, academy, training center, educational department, or other educational organization, together with its teachers, examiners, supervisors, employees, representatives, committees, and other persons acting within the educational process.
+
+**“Academic Evaluation”** means the limited review, execution, demonstration, examination, grading, defense, or assessment of the Author’s work for educational purposes.
+
+**“Licensee”** means any person or organization that accesses or uses SlotBridge under the limited permission granted by this License.
+
+---
+
+## § 2. Ownership, Authorship, and Reservation of Rights
+
+The Author retains all personal non-property rights and all exclusive economic rights that belong to him by law in the original protected components of SlotBridge.
+
+**All rights not expressly granted by this License are reserved.**
+
+No submission, delivery, upload, transfer, review, defense, grading, storage, archival copy, repository access, possession of a device, possession of an APK, possession of source code, or possession of any other copy of SlotBridge shall, by itself, be construed as:
+
+- an assignment or transfer of authorship;
+- an assignment or transfer of exclusive economic rights;
+- a waiver or abandonment of copyright;
+- consent to publication, redistribution, commercialization, sublicensing, rebranding, or institutional exploitation;
+- consent to removal or replacement of attribution; or
+- permission to represent SlotBridge as the work of another person or organization.
+
+The transfer of possession or ownership of a physical or digital copy of the Project does not, by itself, transfer copyright in the Project.
+
+> [!CAUTION]
+> **Academic submission is not a copyright assignment.** A college, teacher, examiner, department, or other institution does not acquire authorship or exclusive rights merely because SlotBridge was created for, submitted to, stored by, demonstrated at, or evaluated within an educational process.
+
+---
+
+## § 3. Limited Academic Evaluation License
+
+Subject to full compliance with this License, the Copyright Holder grants Educational Institutions and their authorized personnel a limited, non-exclusive, non-transferable, non-sublicensable license to:
+
+1. access and review SlotBridge;
+2. run the mobile application and backend;
+3. inspect the source code and documentation;
+4. demonstrate the Project within the academic evaluation process;
+5. make only those temporary or internal copies reasonably necessary to perform Academic Evaluation; and
+6. retain a copy only where reasonably necessary for lawful academic recordkeeping, internal assessment, or compliance obligations.
+
+This permission is granted **solely for Academic Evaluation**.
+
+It does not grant ownership, authorship, commercial rights, publication rights, redistribution rights, sublicensing rights, or any right to use the Project as part of another product, service, institutional system, portfolio, competition entry, grant application, publication, accreditation submission, or promotional material.
+
+---
+
+## § 4. No Implied Institutional Rights
+
+Submission of SlotBridge as coursework, a course project, qualification work, examination work, internship result, defense project, research assignment, practical assignment, or any other academic material does not, by itself, create or transfer any exclusive right in the Project to an Educational Institution.
+
+The following circumstances likewise do not, by themselves, create or transfer such rights:
+
+- storage on institutional computers, servers, learning-management systems, archives, or cloud services;
+- submission through an LMS or other academic platform;
+- demonstration during classes, exams, defenses, or internal academic events;
+- possession of a repository link, ZIP archive, APK, database copy, source code, screenshots, or documentation;
+- inclusion of the Project in internal records showing that academic work was completed; or
+- technical access granted for assessment purposes.
+
+Any assignment or transfer of exclusive economic rights must arise from a separate legally valid basis and must satisfy the form and other requirements imposed by applicable law.
+
+> [!NOTE]
+> If a separate signed contract, employment agreement, author’s agreement, commissioned-work agreement, or other legally binding instrument expressly regulates rights in a specific result, that instrument must be assessed separately under applicable law. Nothing in this License purports to invalidate a binding agreement or a mandatory rule of law.
+
+---
+
+## § 5. Attribution and Protection of Authorship
+
+Where attribution is reasonably possible and required by this License or applicable law, the following notice shall be preserved:
 
 > **SlotBridge — created by Artyom Koncha · © 2026 · All Rights Reserved**
 
-Запрещается без законного основания:
+Without a lawful basis, no person or organization may:
 
-- удалять имя Автора;
-- заменять имя Автора на имя другого лица или организации;
-- скрывать или искажать сведения об авторстве;
-- создавать ложное впечатление, что SlotBridge создан преподавателем, колледжем, другим студентом, сотрудником или третьим лицом;
-- указывать образовательную организацию как автора оригинальных компонентов SlotBridge только на основании факта сдачи или защиты проекта.
+- remove the Author’s name from the Project;
+- replace the Author’s name with the name of another person or organization;
+- conceal or falsify authorship information;
+- remove or falsify copyright notices, `LICENSE.md`, or `NOTICE` for the purpose of concealing origin or ownership;
+- create a false impression that SlotBridge was authored by a teacher, college, another student, employee, contractor, company, or other third party; or
+- present an Educational Institution as the author of the original protected components of SlotBridge solely because the Project was submitted or defended there.
 
-## § 5. Запрещённое использование
+Nothing in this License limits any non-waivable personal non-property rights granted to the Author by applicable law.
 
-За исключением случаев, прямо разрешённых обязательной нормой закона, **без предварительного письменного согласия Правообладателя запрещается**:
+---
 
-- публиковать или перераспространять SlotBridge либо существенную часть его исходного кода;
-- создавать публичные или приватные зеркала репозитория для самостоятельного использования третьими лицами;
-- продавать, перепродавать, сдавать в аренду, лицензировать, сублицензировать или иным образом коммерциализировать проект;
-- включать существенные оригинальные части SlotBridge в другой продукт, сервис, учебную платформу, внутренний проект организации или коммерческую систему;
-- выдавать SlotBridge или его существенную оригинальную часть за собственную работу другого лица или организации;
-- подавать проект от имени третьего лица на конкурс, грант, выставку, аккредитацию, презентацию, публикацию, отчёт или рекламный материал;
-- создавать и распространять производные продукты, основанные преимущественно на оригинальном коде SlotBridge, за пределами случаев, разрешённых законом;
-- удалять или подменять `LICENSE`, `NOTICE` либо сведения об авторстве с целью скрыть происхождение проекта.
+## § 6. Prohibited Uses
 
-## § 6. Публичный репозиторий не означает отказ от прав
+Except where expressly permitted by mandatory applicable law or by prior written authorization from the Copyright Holder, the Licensee shall not:
 
-Публичная доступность репозитория используется для демонстрации проекта, портфолио и академической проверки.
+- reproduce SlotBridge beyond what is reasonably necessary for permitted Academic Evaluation;
+- publish or redistribute SlotBridge or any substantial protected portion of it;
+- upload, mirror, fork for independent institutional use, or otherwise republish substantial protected source code outside the scope permitted by this License;
+- sell, resell, rent, monetize, license, sublicense, assign, or commercially exploit SlotBridge;
+- incorporate substantial original parts of SlotBridge into another product, service, educational platform, institutional system, internal organizational project, or commercial system;
+- create or distribute derivative products substantially based on protected portions of SlotBridge outside the limits allowed by law;
+- submit or present SlotBridge under another person’s or organization’s name in any competition, grant, exhibition, accreditation process, report, publication, presentation, advertising material, institutional showcase, or portfolio;
+- remove, replace, falsify, or materially obscure attribution to the Author; or
+- use the Project in any manner that falsely represents authorship or ownership.
 
-Она **не означает**, что SlotBridge становится общественным достоянием, open-source проектом или программным обеспечением с неограниченным правом копирования, переработки и распространения.
+Any permission beyond the scope of this License must be granted **in writing** by the Copyright Holder.
 
-При этом права, которые необходимо предоставить GitHub или иной hosting-платформе исключительно для технического размещения и отображения репозитория в соответствии с обязательными условиями такой платформы, настоящей лицензией не отменяются.
+---
 
-## § 7. Права третьих лиц
+## § 7. Public Repository Status
 
-Сторонние библиотеки, framework'и, SDK, API, пакеты, шрифты, изображения, зависимости и иные внешние компоненты остаются под условиями своих собственных лицензий и прав соответствующих правообладателей.
+The public availability of the SlotBridge repository is intended for portfolio presentation, technical review, demonstration, and Academic Evaluation.
 
-Настоящая лицензия применяется только к тем оригинальным охраняемым компонентам SlotBridge, права на которые принадлежат Artyom Koncha.
+**Public availability does not place SlotBridge in the public domain and does not make SlotBridge open-source software.**
 
-Ничто в этой лицензии не должно толковаться как попытка присвоить права на сторонние компоненты.
+No open-source license is granted unless the Copyright Holder expressly applies such a license to a specific component.
 
-## § 8. Защита прав
+Nothing in this section restricts the minimum technical rights that must be granted to GitHub or another hosting provider solely for repository hosting and display under that provider’s mandatory terms of service.
 
-Нарушение условий лицензии либо авторских прав может повлечь применение предусмотренных законом способов защиты.
+---
 
-В пределах, допускаемых законодательством Республики Казахстан, Правообладатель вправе требовать, в частности:
+## § 8. Third-Party Components
 
-- признания авторства и принадлежащих ему прав;
-- прекращения неправомерного использования;
-- восстановления корректной информации об авторстве;
-- удаления или прекращения распространения неправомерно опубликованных копий в предусмотренных законом случаях;
-- возмещения убытков, включая упущенную выгоду, либо иных имущественных мер, если для этого выполнены установленные законом условия;
-- применения других способов защиты, предусмотренных законодательством.
+SlotBridge may include or depend on third-party software, libraries, frameworks, APIs, SDKs, packages, fonts, assets, services, or other materials.
 
-Отсутствие немедленной реакции Правообладателя на отдельное нарушение само по себе не означает отказ от принадлежащих ему прав.
+Those components remain subject to the licenses, terms, and intellectual-property rights of their respective owners.
 
-## § 9. Ограничения и обязательные исключения закона
+This License applies only to the original protected contributions owned by Artyom Koncha and shall not be interpreted as claiming ownership of third-party material.
 
-Ничто в настоящей лицензии не ограничивает права, которые третье лицо имеет непосредственно на основании обязательной нормы закона.
+If a third-party license grants broader rights in a third-party component, those rights remain unaffected with respect to that component.
 
-В частности, специальные правила законодательства о допустимом использовании компьютерных программ, цитировании, судебных и административных целях, а также иные предусмотренные законом исключения применяются независимо от формулировок этой лицензии в той мере, в какой они являются обязательными.
+---
 
-## § 10. Отсутствие гарантий
+## § 9. Legal Basis and Governing Law — Republic of Kazakhstan
 
-SlotBridge и его исходный код предоставляются **«как есть» (`AS IS`)** в максимально допустимой законом степени.
+This License shall be interpreted in accordance with the laws of the **Republic of Kazakhstan**, including mandatory rules that cannot lawfully be excluded by agreement.
 
-Правообладатель не предоставляет гарантий пригодности проекта для чужих коммерческих, производственных, образовательных или иных задач, если иное прямо не согласовано в письменной форме.
+The legal framework relevant to this License includes, among other provisions:
 
-## § 11. Делимость положений
+### Law of the Republic of Kazakhstan “On Copyright and Related Rights”
+**Law dated 10 June 1996 No. 6-I, as amended.**
 
-Если отдельное положение этой лицензии будет признано недействительным или неисполнимым, остальные положения сохраняют действие в максимально допустимом законом объёме.
+The following provisions are particularly relevant:
 
-Недействительное положение должно толковаться настолько узко, насколько это необходимо для сохранения законной цели настоящей лицензии.
+- **Article 6** — copyright in a work is not tied to ownership of the material object in which the work is embodied; transfer of a material object does not, by itself, transfer copyright;
+- **Article 7** — computer programs are protected works, and protection extends to computer programs expressed in any language or form, including source text and object code;
+- **Article 9** — copyright arises by virtue of creation of the work and does not require registration or other formalities for its existence or exercise;
+- **Article 15** — the author has personal non-property rights, including the right to be recognized as the author; such rights remain with the author independently of economic rights and are non-transferable;
+- **Article 16** — the author or other right holder has exclusive economic rights to use the work and to authorize or prohibit specified forms of use;
+- **Article 49** — copyright and related rights may be protected by the courts through remedies provided by law, including recognition of rights, restoration of the prior situation, cessation of infringement, recovery of damages, and other statutory remedies.
 
-## § 12. Применимое право и споры
+### Civil Code of the Republic of Kazakhstan — Special Part
+The intellectual-property provisions of the Civil Code further regulate, among other matters:
 
-Настоящая лицензия регулируется законодательством **Республики Казахстан**.
+- the basis on which intellectual-property rights arise;
+- personal non-property and economic rights;
+- exclusive rights;
+- transfer and licensing of exclusive rights;
+- independence of exclusive rights from ownership of the material object embodying the protected result;
+- the author’s personal non-property rights and economic rights; and
+- the commencement and duration of copyright protection.
 
-Споры, связанные с авторством, исключительными правами, использованием SlotBridge или толкованием этой лицензии, разрешаются в порядке, установленном применимым законодательством Республики Казахстан, включая обращение в компетентный суд, если спор не урегулирован иным законным способом.
+For legal context, this includes **Articles 962–968 and 977–982** of the Civil Code (Special Part), subject to their current wording and any subsequent amendments.
 
-## § 13. Дополнительное разрешение
+> [!IMPORTANT]
+> If any provision of this License conflicts with a mandatory provision of the law of the Republic of Kazakhstan, the mandatory legal provision shall control, and the remainder of this License shall continue to operate to the maximum extent permitted by law.
 
-Любое использование, выходящее за пределы настоящей лицензии, требует отдельного письменного разрешения Правообладателя.
+---
 
-Запрос на разрешение должен быть направлен Artyom Koncha через официальный контактный канал, опубликованный Правообладателем.
+## § 10. Enforcement and Remedies
+
+Unauthorized reproduction, redistribution, publication, commercialization, misattribution, removal of authorship information, false representation of ownership, or other use outside the permissions granted by this License may constitute copyright infringement, violation of the Author’s personal non-property rights, breach of this License, or another violation under applicable law.
+
+Subject to applicable law and the facts of a particular case, the Copyright Holder reserves the right to seek any lawful remedy available, including where appropriate:
+
+- recognition of authorship or other rights;
+- cessation of unauthorized use;
+- restoration of accurate attribution;
+- removal or withdrawal of unauthorized copies or publications where legally available;
+- compensation or damages where the legal requirements are met;
+- recovery of income obtained from infringement where provided by law; and
+- any other remedy available under applicable legislation.
+
+Nothing in this License guarantees that a particular remedy, amount, or outcome will be awarded in any specific dispute; such matters are determined under applicable law by the competent authority or court.
+
+---
+
+## § 11. No Waiver
+
+A failure or delay by the Copyright Holder to enforce any provision of this License shall not, by itself, constitute a waiver of that provision or of any legal right.
+
+A waiver is effective only to the extent expressly made by the Copyright Holder and permitted by applicable law.
+
+---
+
+## § 12. Severability
+
+If any provision of this License is held invalid, unlawful, or unenforceable, that provision shall be limited or severed only to the minimum extent necessary, and the remaining provisions shall remain in effect to the maximum extent permitted by law.
+
+---
+
+## § 13. Entire License and Precedence
+
+This document states the permissions granted by the Copyright Holder for use of his original protected contributions to SlotBridge, except where a separate written agreement expressly provides otherwise.
+
+In the event of conflict:
+
+1. mandatory applicable law prevails;
+2. a legally valid written agreement specifically governing the relevant rights prevails to the extent required by law; and
+3. otherwise, this License governs the permitted use of the Copyright Holder’s original protected contributions.
+
+---
+
+## § 14. Permission Requests
+
+Any request to publish, redistribute, modify for redistribution, commercialize, sublicense, incorporate, rebrand, or otherwise use SlotBridge beyond the permissions granted by this License must be submitted to the Copyright Holder through an official contact channel published by Artyom Koncha.
+
+Permission is not granted unless expressly confirmed in writing.
+
+---
 
 <div align="center">
 
-### ⚖️ Copyright Notice
+## ⚖️ COPYRIGHT NOTICE
 
-**© 2026 Artyom Koncha**  
-**SlotBridge · Proprietary Software**  
+**SlotBridge**  
+**Copyright © 2026 Artyom Koncha**  
 **All Rights Reserved**
 
-*Academic submission does not by itself transfer authorship or exclusive rights.*
+*Academic submission, review, defense, storage, or possession of a copy does not, by itself, transfer authorship or exclusive rights.*
 
 </div>
