@@ -7,7 +7,7 @@
 [![Status](https://img.shields.io/badge/Status-Production-2ea44f)](https://slotbridge-api.onrender.com)
 [![Release](https://img.shields.io/badge/Android-v1.1.5-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)
 [![CI](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml)
-[![License](https://img.shields.io/badge/License-Proprietary-c62828)](LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-c62828)](LICENSE.md)
 
 [![Flutter](https://img.shields.io/badge/Flutter-Mobile-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -252,6 +252,6 @@ GitHub: [@artyom129](https://github.com/artyom129)
 
 SlotBridge распространяется по собственной **Proprietary License / All Rights Reserved**. Проект разрешено использовать для академической оценки в пределах условий лицензии; авторство и исключительные права не передаются образовательной организации автоматически.
 
-Полные условия: [LICENSE](LICENSE) · [NOTICE](NOTICE)
+Полные условия: [LICENSE](LICENSE.md) · [NOTICE](NOTICE)
 
 **Copyright © 2026 Artyom Koncha. All Rights Reserved.**
