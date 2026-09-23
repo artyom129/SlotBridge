@@ -1,50 +1,79 @@
+<div align="center">
+
 # SlotBridge
 
-**Мобильная система автоматизации записи клиентов, управления расписанием и интеллектуального подбора времени.**
+**Готовая мобильная система записи клиентов, управления расписанием и интеллектуального подбора времени.**
 
-[![Flutter](https://img.shields.io/badge/Flutter-mobile-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-database-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Status](https://img.shields.io/badge/Status-Production-2ea44f)](https://slotbridge-api.onrender.com)
+[![Release](https://img.shields.io/badge/Android-v1.1.5-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)
+[![CI](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/License-Proprietary-c62828)](LICENSE)
+
+[![Flutter](https://img.shields.io/badge/Flutter-Mobile-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Gemini](https://img.shields.io/badge/Gemini-AI-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
-[![Android](https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-[**Скачать APK**](https://github.com/artyom129/SlotBridge/releases/download/v1.1.5/SlotBridge-1.1.5-9-production.apk) ·
-[**Открыть GitHub Release**](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5) ·
-[**Production API**](https://slotbridge-api.onrender.com) ·
-[**Документация**](docs/architecture.md)
+**[Скачать APK](https://github.com/artyom129/SlotBridge/releases/download/v1.1.5/SlotBridge-1.1.5-9-production.apk)** ·
+**[GitHub Release](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)** ·
+**[Production API](https://slotbridge-api.onrender.com)** ·
+**[Архитектура](docs/architecture.md)** ·
+**[Настройка](docs/setup.md)**
+
+</div>
+
+> **Статус проекта:** завершён и развёрнут. Основной функционал зафиксирован; дальнейшие изменения предназначены только для критических исправлений и технического обслуживания.
 
 Актуальная Android-версия: **1.1.5 (versionCode 9)**.
 
-## Возможности
+## О проекте
 
-- регистрация, вход и защищённая сессия;
-- профиль с редактированием имени, фамилии и телефона;
-- русский и английский интерфейс;
-- светлая, тёмная и системная темы;
-- выбор услуги, сотрудника и реального свободного времени;
-- создание, перенос и отмена записи;
-- список и детали записей пользователя;
-- Waitlist, Smart Slots и Conflict Rescue;
-- Multi-Service Smart Journey для записи на несколько услуг;
-- встроенная проверка и установка новых версий APK.
+SlotBridge — мобильная система для записи клиентов и управления расписанием. Клиент может выбрать услугу и сотрудника, увидеть реальные свободные слоты, создать запись, перенести её или отменить. Backend контролирует доступность, предотвращает двойное бронирование и хранит данные в PostgreSQL.
+
+Поверх базового booking-flow реализованы интеллектуальные сценарии: **Smart Slots**, **Waitlist**, **Conflict Rescue**, **Multi-Service Smart Journey** и **SlotBridge AI** на базе Google Gemini.
+
+Проект работает как полноценная связка **Flutter → FastAPI → PostgreSQL**, развёрнутая на Render и Supabase.
+
+## Ключевые возможности
+
+| Направление | Возможности |
+|---|---|
+| Запись клиентов | выбор услуги, сотрудника и реального свободного времени |
+| Управление записью | создание, перенос, отмена, список и детали записей |
+| Умное расписание | Smart Slots, Waitlist, Conflict Rescue |
+| Несколько услуг | Multi-Service Smart Journey с несколькими стратегиями маршрута |
+| AI-ассистент | поиск услуг, сотрудников, слотов, подготовка записи, переноса и отмены естественным языком |
+| Профиль | регистрация, вход, редактирование имени, фамилии и телефона |
+| Интерфейс | русский / английский, светлая / тёмная / системная тема |
+| Обновления | встроенная проверка новой версии, загрузка APK и SHA-256 verification |
+| Надёжность | транзакции, idempotency, tenant isolation, защита от двойного бронирования |
 
 ## SlotBridge AI
 
-Ассистент на базе Google Gemini помогает искать услуги, сотрудников и свободное
-время по реальным данным SlotBridge. Он может подготовить запись, перенос или
-отмену, распознать запрос на несколько услуг и предложить подходящий маршрут.
+Ассистент на базе Google Gemini работает поверх реальных данных SlotBridge и backend-инструментов приложения.
 
-Перед любым изменением данных требуется подтверждение пользователя. Для
-временных ошибок предусмотрены повтор запроса, ограничение частоты и безопасный
-fallback. Gemini вызывает только разрешённые backend-инструменты и **не имеет
-прямого доступа к PostgreSQL, JWT или секретам**.
+Он умеет:
+
+- находить услуги и сотрудников по естественному запросу;
+- понимать дату, день недели и время;
+- проверять реальную доступность;
+- подготавливать запись, перенос и отмену;
+- работать с multi-service запросами;
+- сохранять контекст между шагами диалога;
+- требовать явное подтверждение перед изменением данных.
+
+Gemini **не подключается напрямую к PostgreSQL** и не получает доступ к JWT, паролям или секретам. Все действия проходят через разрешённые backend-инструменты и доменные сервисы SlotBridge.
 
 ## Multi-Service Smart Journey
 
-Пользователь может выбрать несколько услуг за один визит. SlotBridge строит
-маршрут с учётом сотрудников, свободного времени, длительности услуг и ожидания
-между ними.
+Smart Journey позволяет собрать несколько услуг в один визит и автоматически построить подходящий маршрут с учётом:
+
+- доступности сотрудников;
+- длительности каждой услуги;
+- свободных слотов;
+- ожидания между услугами;
+- количества задействованных специалистов.
 
 Доступны три стратегии:
 
@@ -52,120 +81,118 @@ fallback. Gemini вызывает только разрешённые backend-и
 - **Как можно раньше** — наиболее раннее начало;
 - **Меньше сотрудников** — минимум переходов между специалистами.
 
-Весь маршрут бронируется **атомарно**. Если хотя бы один шаг конфликтует с уже
-занятым временем, частичная запись не создаётся.
+Маршрут бронируется **атомарно**: если один из шагов конфликтует с уже занятым временем, частичная запись не создаётся.
 
 ## Архитектура
 
 ```mermaid
-flowchart TD
-    M[Flutter Mobile] -->|HTTPS, JSON, JWT| B[FastAPI Backend]
-    B -->|SQLAlchemy, транзакции| P[(PostgreSQL)]
-    G[Gemini API] -->|HTTPS| T[FastAPI AI Tools]
-    T --> S[Booking / Availability services]
+flowchart LR
+    M[Flutter Mobile] -->|HTTPS · JSON · JWT| B[FastAPI Backend]
+    B -->|SQLAlchemy · Transactions| P[(PostgreSQL)]
+    B --> A[AI Tools]
+    A -->|HTTPS| G[Google Gemini]
+    A --> S[Booking & Availability Services]
     S --> P
 ```
 
-Gemini работает только через белый список AI-инструментов FastAPI и не
-соединяется с базой данных напрямую. Подробнее: [архитектура проекта](docs/architecture.md).
+Подробное описание компонентов и потоков данных: [`docs/architecture.md`](docs/architecture.md).
 
 ## Технологии
 
-| Часть | Технологии |
+| Слой | Стек |
 |---|---|
-| Mobile | Flutter, Dart, Riverpod, GoRouter, Dio |
-| Backend | Python, FastAPI, SQLAlchemy, Alembic |
+| Mobile | Flutter, Dart, Riverpod, GoRouter, Dio, Secure Storage |
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
 | Database | PostgreSQL |
 | AI | Google Gemini API |
 | Infrastructure | Render, Supabase PostgreSQL, GitHub Releases |
-| Testing | Pytest, Flutter Test |
+| Testing | Pytest, Flutter Test, GitHub Actions |
 
 ## Надёжность и безопасность
 
-- JWT-аутентификация и ролевая модель доступа (RBAC);
-- изоляция данных организаций (tenant isolation);
-- идемпотентность операций записи;
-- транзакции PostgreSQL и exclusion constraint;
-- защита от двойного бронирования, включая конкурентные запросы;
-- белый список AI-инструментов и подтверждение перед изменением данных;
-- секреты хранятся только в локальном `.env` или secrets hosting-платформы;
-- production работает по HTTPS, database credentials не попадают в mobile.
+- JWT-аутентификация;
+- RBAC и tenant isolation;
+- Argon2 для паролей;
+- транзакции PostgreSQL;
+- exclusion constraint и защита от double booking;
+- idempotency для критических операций;
+- HMAC-проверка webhook-сценариев;
+- подтверждение пользователя перед AI-изменениями;
+- backend-only хранение `GEMINI_API_KEY`;
+- секреты не вшиваются в mobile и не хранятся в Git;
+- production API работает по HTTPS.
 
-## Обновление Android-приложения
+## Android updater
 
-Updater проверяет версию при запуске, после возврата приложения из фона и
-вручную через раздел профиля. Метаданные приходят с backend, APK загружается из
-GitHub Releases. Перед установкой приложение сверяет SHA-256, затем передаёт файл
-системному Android installer. Та же подпись и applicationId позволяют установить
-обновление поверх текущей версии без потери локальных данных.
+Встроенный updater проверяет наличие новой версии при запуске приложения, после возврата из фона и вручную из интерфейса.
 
-## Скриншоты
+Перед установкой:
 
-В репозитории пока нет проверенного набора актуальных снимков production-версии.
-Структура и правила добавления реальных изображений подготовлены в
-[`docs/screenshots/`](docs/screenshots/README.md). Макеты и сгенерированные
-изображения вместо интерфейса приложения не используются.
+1. backend возвращает метаданные актуального релиза;
+2. APK загружается из GitHub Releases;
+3. приложение проверяет SHA-256;
+4. файл передаётся системному Android installer;
+5. обновление устанавливается поверх текущей версии без потери локальных данных при совпадении подписи и `applicationId`.
+
+## Production
+
+| Компонент | Состояние |
+|---|---|
+| Android | **v1.1.5 · versionCode 9** |
+| Backend | [Render](https://slotbridge-api.onrender.com) |
+| Database | Supabase PostgreSQL |
+| Transport | HTTPS |
+| APK | [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5) |
+| Health | `GET /api/v1/health/live` |
+
+Render используется на бесплатном тарифе, поэтому первый запрос после периода простоя может занять больше времени из-за cold start.
 
 ## Структура репозитория
 
 | Каталог | Назначение |
 |---|---|
-| `app/` | FastAPI API, модели, схемы и сервисы приложения |
+| `app/` | FastAPI API, модели, схемы и backend-сервисы |
 | `mobile/` | Flutter-клиент для Android |
-| `tests/` | Backend unit, integration и concurrency tests |
-| `alembic/` | Версионируемые миграции PostgreSQL |
-| `docs/` | Архитектура, настройка и материалы проекта |
-| `scripts/` | Startup, seed и вспомогательные сценарии |
+| `tests/` | backend unit, integration и concurrency tests |
+| `alembic/` | миграции PostgreSQL |
+| `docs/` | архитектура и инструкции по запуску |
+| `scripts/` | startup, seed и вспомогательные сценарии |
+| `.github/workflows/` | CI workflow |
 
 ## Локальный запуск
 
-Полная инструкция находится в [`docs/setup.md`](docs/setup.md). Ниже — короткий
-вариант.
+Полная инструкция: [`docs/setup.md`](docs/setup.md).
 
 ### Backend
-
-Требуются Python 3.12 и PostgreSQL. В PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-```
-
-Укажите локальные `DATABASE_URL` и `JWT_SECRET` в `.env`, затем выполните:
-
-```powershell
 alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Swagger UI: `http://127.0.0.1:8000/docs`.
 
-### Windows native PostgreSQL mode
-
-Если PostgreSQL установлен как Windows service, используйте:
+### Windows native PostgreSQL
 
 ```powershell
 .\start_slotbridge.bat
 ```
 
-Сценарий проверит окружение, применит миграции и запустит backend. Остановка:
+Остановка:
 
 ```powershell
 .\stop_slotbridge.bat
 ```
 
-Docker Desktop для этого режима не нужен.
-
-### Docker mode
+### Docker
 
 ```powershell
 docker compose up --build
 ```
-
-Контейнер backend ждёт PostgreSQL, применяет Alembic migrations и запускает API.
-Demo seed не выполняется автоматически в production.
 
 ### Mobile
 
@@ -175,19 +202,15 @@ flutter pub get
 flutter run --dart-define=API_BASE_URL=http://192.168.100.7:8000
 ```
 
-Для production-сборки передаётся HTTPS URL:
+Production build:
 
 ```powershell
 flutter build apk --release --dart-define=API_BASE_URL=https://slotbridge-api.onrender.com
 ```
 
-Production APK уже доступен по ссылке в начале README; для знакомства с проектом
-пересобирать его не требуется.
-
 ## Переменные окружения
 
-`.env.example` содержит только безопасные development placeholders. Основные
-переменные:
+`.env.example` содержит безопасные placeholders. Основные переменные:
 
 | Переменная | Назначение |
 |---|---|
@@ -198,30 +221,9 @@ Production APK уже доступен по ссылке в начале README;
 | `GEMINI_API_KEY` | backend-only ключ Gemini |
 | `GEMINI_MODEL` | используемая модель Gemini |
 
-Настоящие значения не должны попадать в Git. Для production они задаются в
-Render secrets; Supabase используется только как PostgreSQL database.
+Production-секреты задаются на hosting-платформе и не должны попадать в Git.
 
-## Миграции базы данных
-
-```powershell
-alembic current
-alembic upgrade head
-```
-
-Alembic управляет схемой и PostgreSQL-ограничениями. Не создавайте production
-таблицы вручную и не заменяйте PostgreSQL на SQLite.
-
-## Production
-
-- backend: [Render](https://slotbridge-api.onrender.com);
-- database: Supabase Free PostgreSQL;
-- transport: HTTPS;
-- Android APK: [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5).
-
-На бесплатном Render первый запрос после простоя может занять больше времени из-за
-cold start. Health endpoint: `GET /api/v1/health/live`.
-
-## Проверка проекта
+## Проверка
 
 Backend:
 
@@ -237,21 +239,19 @@ flutter analyze
 flutter test
 ```
 
-Последняя локальная проверка перед подготовкой документации: backend — **111
-passed, 6 skipped**, Flutter — **40 passed, 1 skipped**, `flutter analyze` — без
-замечаний. Актуальное состояние основной ветки также проверяется GitHub Actions.
+В репозитории также настроен GitHub Actions workflow для автоматизированных проверок.
 
-## О проекте
+## Автор
 
-SlotBridge разработан как учебный проект по специальности «Информационные
-системы».
+**Artyom Koncha**  
+Information Systems · Python / Backend / Automation
 
-Автор: [Artyom Koncha](https://github.com/artyom129)
+GitHub: [@artyom129](https://github.com/artyom129)
 
 ## Лицензия
 
-Условия использования приведены в [LICENSE](LICENSE) и [NOTICE](NOTICE).
+SlotBridge распространяется по собственной **Proprietary License / All Rights Reserved**. Проект разрешено использовать для академической оценки в пределах условий лицензии; авторство и исключительные права не передаются образовательной организации автоматически.
 
-© 2026 Artyom Koncha.
+Полные условия: [LICENSE](LICENSE) · [NOTICE](NOTICE)
 
-All Rights Reserved.
+**Copyright © 2026 Artyom Koncha. All Rights Reserved.**
