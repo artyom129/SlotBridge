@@ -1,8 +1,19 @@
-SLOTBRIDGE PROPRIETARY LICENSE
+======================================================================
+                         SLOTBRIDGE
+                    PROPRIETARY LICENSE
+          Republic of Kazakhstan • Academic Evaluation
+======================================================================
 
 Copyright © 2026 Artyom Koncha. All Rights Reserved.
 
+License status: Proprietary / All Rights Reserved
+Author and copyright holder: Artyom Koncha
+Project: SlotBridge
+Jurisdiction: Republic of Kazakhstan
+
+----------------------------------------------------------------------
 1. OWNERSHIP AND AUTHORSHIP
+----------------------------------------------------------------------
 
 SlotBridge, including its original source code, backend, mobile application,
 documentation, architecture, database structure, user interface, written
@@ -15,7 +26,9 @@ transfer, or possession of a copy of SlotBridge shall be interpreted as a
 transfer, assignment, waiver, or abandonment of authorship, copyright, or
 exclusive rights.
 
+----------------------------------------------------------------------
 2. LIMITED ACADEMIC EVALUATION PERMISSION
+----------------------------------------------------------------------
 
 Educational institutions, teachers, examiners, supervisors, and other
 authorized academic personnel may access, run, display, and review SlotBridge
@@ -28,27 +41,36 @@ Project.
 Without the prior express written permission of Artyom Koncha, no person or
 organization may:
 
-1) claim authorship or co-authorship of SlotBridge;
-2) remove, conceal, replace, or alter the author's name, copyright notice,
-   LICENSE, NOTICE, or other attribution information;
-3) present SlotBridge, in whole or in substantial part, as the work of an
-   educational institution, teacher, employee, student, contractor, or any
-   other third party;
-4) publish, redistribute, sublicense, sell, resell, transfer, commercialize,
-   or otherwise make SlotBridge or any substantial part of it available to
-   third parties;
-5) incorporate SlotBridge or any substantial part of it into another product,
-   service, educational platform, institutional project, commercial system,
-   repository, or portfolio;
-6) submit or present SlotBridge in competitions, grants, exhibitions,
-   accreditation materials, reports, publications, promotional materials, or
-   other public or institutional materials under another person's or
-   organization's name;
-7) create or distribute derivative products based on SlotBridge; or
-8) use SlotBridge beyond the scope of academic evaluation, private portfolio
-   viewing, or other use expressly authorized in writing by Artyom Koncha.
+  1) claim authorship or co-authorship of SlotBridge;
 
+  2) remove, conceal, replace, or alter the author's name, copyright notice,
+     LICENSE, NOTICE, or other attribution information;
+
+  3) present SlotBridge, in whole or in substantial part, as the work of an
+     educational institution, teacher, employee, student, contractor, or any
+     other third party;
+
+  4) publish, redistribute, sublicense, sell, resell, transfer, commercialize,
+     or otherwise make SlotBridge or any substantial part of it available to
+     third parties;
+
+  5) incorporate SlotBridge or any substantial part of it into another product,
+     service, educational platform, institutional project, commercial system,
+     repository, or portfolio;
+
+  6) submit or present SlotBridge in competitions, grants, exhibitions,
+     accreditation materials, reports, publications, promotional materials,
+     or other public or institutional materials under another person's or
+     organization's name;
+
+  7) create or distribute derivative products based on SlotBridge; or
+
+  8) use SlotBridge beyond the scope of academic evaluation, private portfolio
+     viewing, or other use expressly authorized in writing by Artyom Koncha.
+
+----------------------------------------------------------------------
 3. ATTRIBUTION
+----------------------------------------------------------------------
 
 Any use of SlotBridge that is permitted by applicable law or expressly
 authorized in writing must preserve clear attribution to the author.
@@ -56,12 +78,14 @@ authorized in writing must preserve clear attribution to the author.
 Where attribution is reasonably possible, the following notice must be
 preserved:
 
-"SlotBridge — created by Artyom Koncha, © 2026."
+    “SlotBridge — created by Artyom Koncha, © 2026.”
 
 The author's identity and authorship information may not be removed, obscured,
 misrepresented, or replaced.
 
+----------------------------------------------------------------------
 4. NO IMPLIED INSTITUTIONAL RIGHTS
+----------------------------------------------------------------------
 
 Submission of SlotBridge as coursework, a project, an assignment, a defense
 project, an examination work, an internship result, or other academic material
@@ -76,18 +100,22 @@ Any transfer or assignment of exclusive economic rights must arise from a
 separate valid written agreement executed by the relevant rights holder in
 accordance with applicable law.
 
+----------------------------------------------------------------------
 5. REPUBLIC OF KAZAKHSTAN LAW
+----------------------------------------------------------------------
 
 This License and the author's rights in SlotBridge shall be interpreted in
 accordance with the legislation of the Republic of Kazakhstan, including the
-Law of the Republic of Kazakhstan "On Copyright and Related Rights", as
-amended from time to time.
+Law of the Republic of Kazakhstan “On Copyright and Related Rights”, as amended
+from time to time.
 
 Nothing in this License limits any non-waivable moral rights, authorship
 rights, remedies, statutory exceptions, or other protections granted by
 applicable law.
 
+----------------------------------------------------------------------
 6. THIRD-PARTY COMPONENTS
+----------------------------------------------------------------------
 
 Third-party libraries, frameworks, APIs, SDKs, packages, fonts, assets, and
 other external components remain subject to their own respective licenses and
@@ -96,7 +124,9 @@ terms.
 This License applies only to the original copyrightable contributions owned by
 Artyom Koncha and does not alter the rights or licenses of third parties.
 
+----------------------------------------------------------------------
 7. ENFORCEMENT
+----------------------------------------------------------------------
 
 Unauthorized reproduction, distribution, publication, commercialization,
 misattribution, removal of authorship information, or representation of
@@ -106,9 +136,11 @@ violation of this License and/or applicable copyright law.
 The copyright holder reserves all rights and remedies available under
 applicable law.
 
+----------------------------------------------------------------------
 8. DISCLAIMER
+----------------------------------------------------------------------
 
-SLOTBRIDGE AND ITS SOURCE CODE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+SLOTBRIDGE AND ITS SOURCE CODE ARE PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY
 KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
 NON-INFRINGEMENT.
@@ -117,8 +149,14 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER SHALL
 NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF,
 OR IN CONNECTION WITH SLOTBRIDGE OR ITS USE.
 
+----------------------------------------------------------------------
+9. PERMISSION REQUESTS
+----------------------------------------------------------------------
+
 For permission requests, contact Artyom Koncha through an official contact
 channel published by the copyright holder.
 
-Copyright © 2026 Artyom Koncha.
-All Rights Reserved.
+======================================================================
+                Copyright © 2026 Artyom Koncha
+                      All Rights Reserved
+======================================================================
