@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, journeys, schedules, version, waitlist, ai
+from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, journeys, reviews, schedules, version, waitlist, ai
 from app.config import Settings, get_settings
 from app.core import DB, Service
 from app.database import get_db
@@ -481,6 +481,7 @@ app.include_router(version.router)
 app.include_router(waitlist.router)
 app.include_router(ai.router)
 app.include_router(journeys.router)
+app.include_router(reviews.router)
 
 STYLE = """
 body{margin:0;background:#071019;color:#eef4fb;font:14px system-ui}*{box-sizing:border-box}

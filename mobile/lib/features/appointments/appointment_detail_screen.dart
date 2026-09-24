@@ -191,6 +191,35 @@ class _AppointmentDetailScreenState
                   ),
                 ),
               ],
+              if (appointment.status == 'COMPLETED') ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  key: const Key('reviewAppointmentButton'),
+                  onPressed: () => context.push(
+                    '/appointments/${appointment.id}/review'
+                    '${appointment.reviewId == null ? '' : '?reviewId=${appointment.reviewId}'}',
+                  ),
+                  icon: Icon(
+                    appointment.reviewId == null
+                        ? Icons.star_outline_rounded
+                        : Icons.rate_review_outlined,
+                  ),
+                  label: Text(
+                    appointment.reviewId == null
+                        ? context.l10n.leaveReview
+                        : context.l10n.yourReview,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.push(
+                  '/employees/${appointment.employee.id}/reviews'
+                  '?name=${Uri.encodeQueryComponent(appointment.employee.name)}',
+                ),
+                icon: const Icon(Icons.reviews_outlined),
+                label: Text(context.l10n.specialistReviews),
+              ),
               if (appointment.history.isNotEmpty) ...[
                 const SizedBox(height: 28),
                 Text(

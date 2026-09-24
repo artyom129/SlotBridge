@@ -45,9 +45,38 @@ SlotBridge — мобильная система для записи клиен�
 | Несколько услуг | Multi-Service Smart Journey с несколькими стратегиями маршрута |
 | AI-ассистент | поиск услуг, сотрудников, слотов, подготовка записи, переноса и отмены естественным языком |
 | Профиль | регистрация, вход, редактирование имени, фамилии и телефона |
+| Отзывы | отзывы после завершённой записи, рейтинг специалистов, жалобы и официальный ответ |
 | Интерфейс | русский / английский, светлая / тёмная / системная тема |
 | Обновления | встроенная проверка новой версии, загрузка APK и SHA-256 verification |
 | Надёжность | транзакции, idempotency, tenant isolation, защита от двойного бронирования |
+
+## Отзывы и рейтинг качества
+
+Отзыв создаётся только владельцем завершённой записи и всегда наследует
+организацию, услугу и специалиста из appointment — эти идентификаторы не
+принимаются от клиента. На одну запись допускается один отзыв; это защищено как
+проверкой сервиса, так и `UNIQUE` constraint PostgreSQL.
+
+Публично показываются только отзывы `PUBLISHED`. Анонимный режим скрывает имя
+клиента, но сохраняет автора в закрытом audit trail. Клиент может изменить или
+отозвать отзыв в течение настраиваемого окна (по умолчанию 24 часа). Сотрудник
+может ответить только на собственный отзыв, а ADMIN — модерировать, разбирать
+жалобы и смотреть агрегаты. Скрытие не удаляет данные физически.
+
+Рейтинг рассчитывается по опубликованным отзывам: среднее, количество,
+распределение 1–5 и средние оценки качества, сервиса и пунктуальности. После
+оценки 4–5 приложение может предложить открыть официальную HTTPS-карточку 2GIS;
+передача внутреннего отзыва во внешний сервис не выполняется.
+Это сознательная граница интеграции: официальная документация Places API
+указывает, что API умеет фильтровать организации по наличию отзывов, но получение
+самих отзывов не поддерживается; документированного публичного API для
+публикации отзыва от имени клиента SlotBridge не использует:
+[2GIS Places API](https://docs.2gis.com/en/api/search/places/examples/filtering).
+
+Admin AI summary получает только ограниченный набор анонимизированных оценок,
+дат, услуг, сотрудников и очищенных комментариев. Gemini не получает client,
+appointment, JWT или database identifiers, а результат не используется как
+автоматическое основание для санкций.
 
 ## SlotBridge AI
 
@@ -220,10 +249,53 @@ flutter build apk --release --dart-define=API_BASE_URL=https://slotbridge-api.on
 | `CORS_ALLOWED_ORIGINS` | разрешённые origins |
 | `GEMINI_API_KEY` | backend-only ключ Gemini |
 | `GEMINI_MODEL` | используемая модель Gemini |
+| `REVIEW_EDIT_WINDOW_HOURS` | срок редактирования отзыва, по умолчанию `24` |
 
 Production-секреты задаются на hosting-платформе и не должны попадать в Git.
 
-## Проверка
+## Миграции базы данных
+
+```powershell
+alembic current
+alembic upgrade head
+```
+
+Alembic управляет схемой и PostgreSQL-ограничениями. Не создавайте production
+таблицы вручную и не заменяйте PostgreSQL на SQLite.
+
+Модуль отзывов добавляет миграция `20260924_0006`: `reviews`,
+`review_reports`, `review_replies`, `review_audit_log` и безопасную optional
+ссылку организации на 2GIS.
+
+## Review API
+
+| Endpoint | Назначение |
+|---|---|
+| `POST /reviews` | отзыв владельца на завершённую запись |
+| `GET/PATCH/DELETE /reviews/{id}` | просмотр, изменение, мягкий отзыв публикации |
+| `GET /me/reviews` | история отзывов клиента |
+| `GET /appointments/{id}/review` | отзыв конкретной записи |
+| `GET /employees/{id}/reviews` | опубликованные отзывы, pagination/filter/sort |
+| `GET /employees/{id}/rating` | rating aggregates и распределение |
+| `POST /reviews/{id}/reports` | жалоба без повторного спама |
+| `PUT /reviews/{id}/reply` | официальный ответ сотрудника/организации |
+| `GET /admin/organizations/{id}/reviews` | moderation queue и причины жалоб |
+| `PATCH /admin/reviews/{id}/moderation` | скрыть, flag или восстановить |
+| `PATCH /admin/review-reports/{id}` | закрыть или отклонить жалобу |
+| `GET /admin/organizations/{id}/reviews/analytics` | агрегаты с фильтрами |
+| `GET /admin/organizations/{id}/reviews/ai-summary` | privacy-safe Gemini summary |
+
+## Production
+
+- backend: [Render](https://slotbridge-api.onrender.com);
+- database: Supabase Free PostgreSQL;
+- transport: HTTPS;
+- Android APK: [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5).
+
+На бесплатном Render первый запрос после простоя может занять больше времени из-за
+cold start. Health endpoint: `GET /api/v1/health/live`.
+
+## Проверка проекта
 
 Backend:
 

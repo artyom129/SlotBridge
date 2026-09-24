@@ -48,7 +48,7 @@ organization_id, client_user_id или рассчитанный ends_at для �
 
 PostgreSQL — источник истины для пользователей, организаций, расписаний,
 записей, waitlist и audit history. Схема меняется только через Alembic.
-Текущий head: **20260919_0005**.
+Текущий head: **20260924_0006**.
 
 SQLite остаётся только в изолированной legacy integration demo и не
 используется booking engine.
@@ -101,6 +101,24 @@ Backend различает timeout, network failure, rate limit, auth failure и
 response. Для временных ошибок предусмотрены retry и fallback Gemini model.
 Логи содержат только безопасную категорию ошибки и HTTP status, без prompt,
 API key или пользовательских данных.
+
+## Reviews and service quality
+
+`ReviewService` — единственная граница записи отзывов. Он получает
+appointment, проверяет владельца и `COMPLETED`, а organization, employee,
+service и client берёт только из доверенных backend-моделей. Уникальность
+`appointment_id` и диапазоны оценок 1–5 дополнительно защищены constraint-ами
+PostgreSQL.
+
+Публичные запросы ограничены tenant-ом и `PUBLISHED`; anonymous влияет только
+на отображаемое имя. HIDDEN/FLAGGED, причины жалоб и реальные авторы доступны
+только владельцу в разрешённых случаях или ADMIN. Удаление клиента реализовано
+как auditable soft hide. Ответ EMPLOYEE разрешён только для его employee row.
+
+Агрегаты рассчитываются SQL-запросами по опубликованным отзывам, поэтому нет
+денормализованного кэша и риска рассинхронизации. Gemini summary формируется
+backend-ом из ограниченной выборки без client/appointment identifiers; email и
+телефон в комментариях удаляются до внешнего запроса.
 
 ## Infrastructure
 
