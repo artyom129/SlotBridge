@@ -451,4 +451,101 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fillsGap => 'Fills a schedule gap';
+
+  @override
+  String get rateSpecialist => 'Rate specialist';
+
+  @override
+  String get leaveReview => 'Leave a review';
+
+  @override
+  String get yourReview => 'Your review';
+
+  @override
+  String get reviewOverall => 'Overall rating';
+
+  @override
+  String get reviewQuality => 'Quality';
+
+  @override
+  String get reviewService => 'Service';
+
+  @override
+  String get reviewPunctuality => 'Punctuality';
+
+  @override
+  String get reviewComment => 'Comment (optional)';
+
+  @override
+  String get reviewAnonymous => 'Post anonymously';
+
+  @override
+  String get reviewAnonymousHint => 'Your name will not be shown publicly.';
+
+  @override
+  String get reviewPublish => 'Publish review';
+
+  @override
+  String get reviewPublishing => 'Publishing…';
+
+  @override
+  String get reviewPublished => 'Review published';
+
+  @override
+  String get reviewThankYou => 'Thank you for helping improve the service!';
+
+  @override
+  String get review2gisPrompt =>
+      'Would you also like to leave a review in 2GIS?';
+
+  @override
+  String get review2gisOpen => 'Open 2GIS';
+
+  @override
+  String get backToAppointment => 'Back to appointment';
+
+  @override
+  String get specialistReviews => 'Specialist reviews';
+
+  @override
+  String get allRatings => 'All ratings';
+
+  @override
+  String get sortNewest => 'Newest';
+
+  @override
+  String get sortOldest => 'Oldest';
+
+  @override
+  String get sortHighest => 'Highest rating';
+
+  @override
+  String get sortLowest => 'Lowest rating';
+
+  @override
+  String get noReviews => 'No reviews yet';
+
+  @override
+  String get noReviewsHint => 'Completed appointment reviews will appear here.';
+
+  @override
+  String get reviewAppointmentNotCompleted =>
+      'A review can be left only after the appointment is completed.';
+
+  @override
+  String get reviewAlreadyExists =>
+      'You have already reviewed this appointment.';
+
+  @override
+  String get reviewEditExpired => 'The review editing period has expired.';
+
+  @override
+  String reviewsCount(int count) {
+    return '$count reviews';
+  }
+
+  @override
+  String reviewStars(int count) {
+    return 'Rating: $count of 5';
+  }
 }

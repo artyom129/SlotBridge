@@ -101,6 +101,18 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                               onTap: () => context.push(
                                 '/appointments/${items[index].id}',
                               ),
+                              reviewActionLabel:
+                                  items[index].status == 'COMPLETED'
+                                  ? (items[index].reviewId == null
+                                        ? context.l10n.leaveReview
+                                        : context.l10n.yourReview)
+                                  : null,
+                              onReview: items[index].status == 'COMPLETED'
+                                  ? () => context.push(
+                                      '/appointments/${items[index].id}/review'
+                                      '${items[index].reviewId == null ? '' : '?reviewId=${items[index].reviewId}'}',
+                                    )
+                                  : null,
                             ),
                           ),
                         ),

@@ -15,6 +15,8 @@ import '../../features/home/app_shell.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/journey/journey_screen.dart';
+import '../../features/reviews/employee_reviews_screen.dart';
+import '../../features/reviews/review_form_screen.dart';
 import '../../l10n/l10n.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -79,6 +81,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/appointments/:id/reschedule',
         builder: (context, state) =>
             RescheduleScreen(appointmentId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/appointments/:id/review',
+        builder: (context, state) => ReviewFormScreen(
+          appointmentId: state.pathParameters['id']!,
+          reviewId: state.uri.queryParameters['reviewId'],
+        ),
+      ),
+      GoRoute(
+        path: '/employees/:id/reviews',
+        builder: (context, state) => EmployeeReviewsScreen(
+          employeeId: state.pathParameters['id']!,
+          employeeName: state.uri.queryParameters['name'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/appointments/:id',

@@ -62,6 +62,28 @@ class WaitlistStatus(str, Enum):
     EXPIRED = "EXPIRED"
 
 
+class ReviewStatus(str, Enum):
+    PUBLISHED = "PUBLISHED"
+    HIDDEN = "HIDDEN"
+    FLAGGED = "FLAGGED"
+
+
+class ReviewReportStatus(str, Enum):
+    OPEN = "OPEN"
+    RESOLVED = "RESOLVED"
+    DISMISSED = "DISMISSED"
+
+
+class ReviewAuditAction(str, Enum):
+    REVIEW_CREATED = "REVIEW_CREATED"
+    REVIEW_UPDATED = "REVIEW_UPDATED"
+    REVIEW_HIDDEN = "REVIEW_HIDDEN"
+    REVIEW_RESTORED = "REVIEW_RESTORED"
+    REVIEW_REPORTED = "REVIEW_REPORTED"
+    REVIEW_REPLY_CREATED = "REVIEW_REPLY_CREATED"
+    REVIEW_REPLY_UPDATED = "REVIEW_REPLY_UPDATED"
+
+
 OCCUPYING_APPOINTMENT_STATUSES = (
     AppointmentStatus.BOOKED,
     AppointmentStatus.CONFIRMED,
@@ -119,6 +141,7 @@ class Organization(TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(120), nullable=False)
     timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    external_review_url_2gis: Mapped[str | None] = mapped_column(String(1000))
 
     branches: Mapped[list["Branch"]] = relationship(
         back_populates="organization", passive_deletes=True
@@ -616,6 +639,12 @@ class Appointment(TimestampMixin, Base):
         passive_deletes=True,
         order_by="AppointmentAuditLog.created_at",
     )
+    review: Mapped["Review | None"] = relationship(
+        back_populates="appointment",
+        uselist=False,
+        passive_deletes=True,
+        lazy="selectin",
+    )
 
 
 class WaitlistEntry(TimestampMixin, Base):
@@ -737,3 +766,97 @@ class AppointmentAuditLog(Base):
     )
 
     appointment: Mapped[Appointment] = relationship(back_populates="audit_events")
+
+
+class Review(TimestampMixin, Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("appointment_id", name="uq_reviews_appointment"),
+        UniqueConstraint("id", "organization_id", name="uq_reviews_id_org"),
+        CheckConstraint("overall_rating BETWEEN 1 AND 5", name="ck_reviews_overall_rating"),
+        CheckConstraint("quality_rating IS NULL OR quality_rating BETWEEN 1 AND 5", name="ck_reviews_quality_rating"),
+        CheckConstraint("service_rating IS NULL OR service_rating BETWEEN 1 AND 5", name="ck_reviews_service_rating"),
+        CheckConstraint("punctuality_rating IS NULL OR punctuality_rating BETWEEN 1 AND 5", name="ck_reviews_punctuality_rating"),
+        ForeignKeyConstraint(["appointment_id", "organization_id"], ["appointments.id", "appointments.organization_id"], name="fk_reviews_appointment_org", ondelete="CASCADE"),
+        ForeignKeyConstraint(["client_user_id", "organization_id"], ["organization_memberships.user_id", "organization_memberships.organization_id"], name="fk_reviews_client_membership", ondelete="RESTRICT"),
+        ForeignKeyConstraint(["employee_id", "organization_id"], ["employees.id", "employees.organization_id"], name="fk_reviews_employee_org", ondelete="RESTRICT"),
+        ForeignKeyConstraint(["service_id", "organization_id"], ["services.id", "services.organization_id"], name="fk_reviews_service_org", ondelete="RESTRICT"),
+        Index("ix_reviews_employee_status_created", "employee_id", "status", "created_at"),
+        Index("ix_reviews_org_status_created", "organization_id", "status", "created_at"),
+        Index("ix_reviews_service_status", "service_id", "status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    appointment_id: Mapped[UUID] = mapped_column(nullable=False)
+    client_user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    employee_id: Mapped[UUID] = mapped_column(nullable=False)
+    service_id: Mapped[UUID] = mapped_column(nullable=False)
+    overall_rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    quality_rating: Mapped[int | None] = mapped_column(Integer)
+    service_rating: Mapped[int | None] = mapped_column(Integer)
+    punctuality_rating: Mapped[int | None] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(Text)
+    is_anonymous: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    status: Mapped[ReviewStatus] = mapped_column(SAEnum(ReviewStatus, name="review_status", validate_strings=True), default=ReviewStatus.PUBLISHED, nullable=False)
+    moderation_note: Mapped[str | None] = mapped_column(String(1000))
+    appointment: Mapped[Appointment] = relationship(back_populates="review")
+    client: Mapped[User] = relationship(foreign_keys=[client_user_id], viewonly=True)
+    employee: Mapped[Employee] = relationship(foreign_keys=[employee_id, organization_id], viewonly=True)
+    service: Mapped[Service] = relationship(foreign_keys=[service_id, organization_id], viewonly=True)
+    reports: Mapped[list["ReviewReport"]] = relationship(back_populates="review", cascade="all, delete-orphan", passive_deletes=True)
+    reply: Mapped["ReviewReply | None"] = relationship(back_populates="review", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
+    audit_events: Mapped[list["ReviewAuditLog"]] = relationship(back_populates="review", cascade="all, delete-orphan", passive_deletes=True, order_by="ReviewAuditLog.created_at")
+
+
+class ReviewReport(TimestampMixin, Base):
+    __tablename__ = "review_reports"
+    __table_args__ = (
+        UniqueConstraint("review_id", "reporter_user_id", name="uq_review_reports_reporter"),
+        ForeignKeyConstraint(["review_id", "organization_id"], ["reviews.id", "reviews.organization_id"], name="fk_review_reports_review_org", ondelete="CASCADE"),
+        Index("ix_review_reports_org_status_created", "organization_id", "status", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    review_id: Mapped[UUID] = mapped_column(nullable=False)
+    reporter_user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[ReviewReportStatus] = mapped_column(SAEnum(ReviewReportStatus, name="review_report_status", validate_strings=True), default=ReviewReportStatus.OPEN, nullable=False)
+    review: Mapped[Review] = relationship(back_populates="reports")
+
+
+class ReviewReply(TimestampMixin, Base):
+    __tablename__ = "review_replies"
+    __table_args__ = (
+        UniqueConstraint("review_id", name="uq_review_replies_review"),
+        ForeignKeyConstraint(["review_id", "organization_id"], ["reviews.id", "reviews.organization_id"], name="fk_review_replies_review_org", ondelete="CASCADE"),
+        Index("ix_review_replies_org_created", "organization_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    review_id: Mapped[UUID] = mapped_column(nullable=False)
+    author_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    review: Mapped[Review] = relationship(back_populates="reply")
+    author: Mapped[User] = relationship(foreign_keys=[author_user_id], viewonly=True)
+
+
+class ReviewAuditLog(Base):
+    __tablename__ = "review_audit_log"
+    __table_args__ = (
+        ForeignKeyConstraint(["review_id", "organization_id"], ["reviews.id", "reviews.organization_id"], name="fk_review_audit_log_review_org", ondelete="CASCADE"),
+        Index("ix_review_audit_review_created", "review_id", "created_at"),
+        Index("ix_review_audit_org_created", "organization_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    review_id: Mapped[UUID] = mapped_column(nullable=False)
+    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    action: Mapped[ReviewAuditAction] = mapped_column(SAEnum(ReviewAuditAction, name="review_audit_action", validate_strings=True), nullable=False)
+    actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), server_default=func.now(), nullable=False)
+    review: Mapped[Review] = relationship(back_populates="audit_events")

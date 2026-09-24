@@ -5,6 +5,7 @@ import '../data/booking_repository.dart';
 import '../data/catalog_repository.dart';
 import '../data/waitlist_repository.dart';
 import '../data/journey_repository.dart';
+import '../data/review_repository.dart';
 import 'network/api_client.dart';
 import 'storage/token_storage.dart';
 
@@ -38,4 +39,7 @@ final waitlistRepositoryProvider = Provider(
 );
 final waitlistProvider = FutureProvider(
   (ref) => ref.watch(waitlistRepositoryProvider).list(),
+);
+final reviewRepositoryProvider = Provider<ReviewRepository>(
+  (ref) => ApiReviewRepository(ref.watch(apiClientProvider)),
 );

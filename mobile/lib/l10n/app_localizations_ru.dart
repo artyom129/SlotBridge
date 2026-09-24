@@ -458,4 +458,100 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get fillsGap => 'Заполняет окно';
+
+  @override
+  String get rateSpecialist => 'Оценить специалиста';
+
+  @override
+  String get leaveReview => 'Оставить отзыв';
+
+  @override
+  String get yourReview => 'Ваш отзыв';
+
+  @override
+  String get reviewOverall => 'Общая оценка';
+
+  @override
+  String get reviewQuality => 'Качество';
+
+  @override
+  String get reviewService => 'Сервис';
+
+  @override
+  String get reviewPunctuality => 'Пунктуальность';
+
+  @override
+  String get reviewComment => 'Комментарий (необязательно)';
+
+  @override
+  String get reviewAnonymous => 'Опубликовать анонимно';
+
+  @override
+  String get reviewAnonymousHint => 'Ваше имя не будет видно публично.';
+
+  @override
+  String get reviewPublish => 'Опубликовать отзыв';
+
+  @override
+  String get reviewPublishing => 'Публикуем…';
+
+  @override
+  String get reviewPublished => 'Отзыв опубликован';
+
+  @override
+  String get reviewThankYou => 'Спасибо! Ваш отзыв помогает улучшать сервис.';
+
+  @override
+  String get review2gisPrompt => 'Хотите также оставить отзыв в 2GIS?';
+
+  @override
+  String get review2gisOpen => 'Открыть 2GIS';
+
+  @override
+  String get backToAppointment => 'Вернуться к записи';
+
+  @override
+  String get specialistReviews => 'Отзывы о специалисте';
+
+  @override
+  String get allRatings => 'Все оценки';
+
+  @override
+  String get sortNewest => 'Сначала новые';
+
+  @override
+  String get sortOldest => 'Сначала старые';
+
+  @override
+  String get sortHighest => 'Сначала высокие';
+
+  @override
+  String get sortLowest => 'Сначала низкие';
+
+  @override
+  String get noReviews => 'Отзывов пока нет';
+
+  @override
+  String get noReviewsHint =>
+      'Здесь появятся отзывы после завершённых записей.';
+
+  @override
+  String get reviewAppointmentNotCompleted =>
+      'Отзыв можно оставить только после завершённой записи.';
+
+  @override
+  String get reviewAlreadyExists => 'Вы уже оставили отзыв на эту запись.';
+
+  @override
+  String get reviewEditExpired => 'Срок редактирования отзыва истёк.';
+
+  @override
+  String reviewsCount(int count) {
+    return 'Отзывов: $count';
+  }
+
+  @override
+  String reviewStars(int count) {
+    return 'Оценка: $count из 5';
+  }
 }

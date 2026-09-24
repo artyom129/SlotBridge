@@ -949,6 +949,186 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Заполняет окно'**
   String get fillsGap;
+
+  /// No description provided for @rateSpecialist.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оценить специалиста'**
+  String get rateSpecialist;
+
+  /// No description provided for @leaveReview.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оставить отзыв'**
+  String get leaveReview;
+
+  /// No description provided for @yourReview.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ваш отзыв'**
+  String get yourReview;
+
+  /// No description provided for @reviewOverall.
+  ///
+  /// In ru, this message translates to:
+  /// **'Общая оценка'**
+  String get reviewOverall;
+
+  /// No description provided for @reviewQuality.
+  ///
+  /// In ru, this message translates to:
+  /// **'Качество'**
+  String get reviewQuality;
+
+  /// No description provided for @reviewService.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сервис'**
+  String get reviewService;
+
+  /// No description provided for @reviewPunctuality.
+  ///
+  /// In ru, this message translates to:
+  /// **'Пунктуальность'**
+  String get reviewPunctuality;
+
+  /// No description provided for @reviewComment.
+  ///
+  /// In ru, this message translates to:
+  /// **'Комментарий (необязательно)'**
+  String get reviewComment;
+
+  /// No description provided for @reviewAnonymous.
+  ///
+  /// In ru, this message translates to:
+  /// **'Опубликовать анонимно'**
+  String get reviewAnonymous;
+
+  /// No description provided for @reviewAnonymousHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Ваше имя не будет видно публично.'**
+  String get reviewAnonymousHint;
+
+  /// No description provided for @reviewPublish.
+  ///
+  /// In ru, this message translates to:
+  /// **'Опубликовать отзыв'**
+  String get reviewPublish;
+
+  /// No description provided for @reviewPublishing.
+  ///
+  /// In ru, this message translates to:
+  /// **'Публикуем…'**
+  String get reviewPublishing;
+
+  /// No description provided for @reviewPublished.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отзыв опубликован'**
+  String get reviewPublished;
+
+  /// No description provided for @reviewThankYou.
+  ///
+  /// In ru, this message translates to:
+  /// **'Спасибо! Ваш отзыв помогает улучшать сервис.'**
+  String get reviewThankYou;
+
+  /// No description provided for @review2gisPrompt.
+  ///
+  /// In ru, this message translates to:
+  /// **'Хотите также оставить отзыв в 2GIS?'**
+  String get review2gisPrompt;
+
+  /// No description provided for @review2gisOpen.
+  ///
+  /// In ru, this message translates to:
+  /// **'Открыть 2GIS'**
+  String get review2gisOpen;
+
+  /// No description provided for @backToAppointment.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вернуться к записи'**
+  String get backToAppointment;
+
+  /// No description provided for @specialistReviews.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отзывы о специалисте'**
+  String get specialistReviews;
+
+  /// No description provided for @allRatings.
+  ///
+  /// In ru, this message translates to:
+  /// **'Все оценки'**
+  String get allRatings;
+
+  /// No description provided for @sortNewest.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сначала новые'**
+  String get sortNewest;
+
+  /// No description provided for @sortOldest.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сначала старые'**
+  String get sortOldest;
+
+  /// No description provided for @sortHighest.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сначала высокие'**
+  String get sortHighest;
+
+  /// No description provided for @sortLowest.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сначала низкие'**
+  String get sortLowest;
+
+  /// No description provided for @noReviews.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отзывов пока нет'**
+  String get noReviews;
+
+  /// No description provided for @noReviewsHint.
+  ///
+  /// In ru, this message translates to:
+  /// **'Здесь появятся отзывы после завершённых записей.'**
+  String get noReviewsHint;
+
+  /// No description provided for @reviewAppointmentNotCompleted.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отзыв можно оставить только после завершённой записи.'**
+  String get reviewAppointmentNotCompleted;
+
+  /// No description provided for @reviewAlreadyExists.
+  ///
+  /// In ru, this message translates to:
+  /// **'Вы уже оставили отзыв на эту запись.'**
+  String get reviewAlreadyExists;
+
+  /// No description provided for @reviewEditExpired.
+  ///
+  /// In ru, this message translates to:
+  /// **'Срок редактирования отзыва истёк.'**
+  String get reviewEditExpired;
+
+  /// No description provided for @reviewsCount.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отзывов: {count}'**
+  String reviewsCount(int count);
+
+  /// No description provided for @reviewStars.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оценка: {count} из 5'**
+  String reviewStars(int count);
 }
 
 class _AppLocalizationsDelegate

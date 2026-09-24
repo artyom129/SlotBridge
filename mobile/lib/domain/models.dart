@@ -49,18 +49,21 @@ class Organization {
     required this.name,
     required this.timezone,
     required this.isActive,
+    this.externalReviewUrl2gis,
   });
 
   final String id;
   final String name;
   final String timezone;
   final bool isActive;
+  final String? externalReviewUrl2gis;
 
   factory Organization.fromJson(JsonMap json) => Organization(
     id: json['id'] as String,
     name: json['name'] as String,
     timezone: json['timezone'] as String,
     isActive: json['is_active'] as bool,
+    externalReviewUrl2gis: json['external_review_url_2gis'] as String?,
   );
 }
 
@@ -258,6 +261,7 @@ class Appointment {
     required this.cancellationReason,
     required this.cancelledAt,
     required this.history,
+    this.reviewId,
   });
 
   final String id;
@@ -275,6 +279,7 @@ class Appointment {
   final String? cancellationReason;
   final DateTime? cancelledAt;
   final List<StatusHistory> history;
+  final String? reviewId;
 
   bool get isCancelled => status == 'CANCELLED';
   bool get canClientChange =>
@@ -302,6 +307,135 @@ class Appointment {
     history: ((json['status_history'] as List<dynamic>?) ?? const [])
         .map((item) => StatusHistory.fromJson(item as JsonMap))
         .toList(growable: false),
+    reviewId: json['review_id'] as String?,
+  );
+}
+
+class ReviewReply {
+  const ReviewReply({
+    required this.authorLabel,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final String authorLabel;
+  final String text;
+  final DateTime createdAt;
+
+  factory ReviewReply.fromJson(JsonMap json) => ReviewReply(
+    authorLabel: json['author_label'] as String,
+    text: json['text'] as String,
+    createdAt: DateTime.parse(json['created_at'] as String),
+  );
+}
+
+class Review {
+  const Review({
+    required this.id,
+    required this.appointmentId,
+    required this.employeeId,
+    required this.serviceId,
+    required this.serviceName,
+    required this.clientDisplayName,
+    required this.overallRating,
+    required this.qualityRating,
+    required this.serviceRating,
+    required this.punctualityRating,
+    required this.comment,
+    required this.isAnonymous,
+    required this.canEdit,
+    required this.editDeadline,
+    required this.reply,
+    required this.createdAt,
+    required this.externalReviewUrl2gis,
+  });
+
+  final String id;
+  final String? appointmentId;
+  final String employeeId;
+  final String serviceId;
+  final String? serviceName;
+  final String clientDisplayName;
+  final int overallRating;
+  final int? qualityRating;
+  final int? serviceRating;
+  final int? punctualityRating;
+  final String? comment;
+  final bool isAnonymous;
+  final bool canEdit;
+  final DateTime? editDeadline;
+  final ReviewReply? reply;
+  final DateTime createdAt;
+  final String? externalReviewUrl2gis;
+
+  factory Review.fromJson(JsonMap json) => Review(
+    id: json['id'] as String,
+    appointmentId: json['appointment_id'] as String?,
+    employeeId: json['employee_id'] as String,
+    serviceId: json['service_id'] as String,
+    serviceName: json['service_name'] as String?,
+    clientDisplayName: json['client_display_name'] as String,
+    overallRating: json['overall_rating'] as int,
+    qualityRating: json['quality_rating'] as int?,
+    serviceRating: json['service_rating'] as int?,
+    punctualityRating: json['punctuality_rating'] as int?,
+    comment: json['comment'] as String?,
+    isAnonymous: json['is_anonymous'] as bool,
+    canEdit: json['can_edit'] as bool? ?? false,
+    editDeadline: json['edit_deadline'] == null
+        ? null
+        : DateTime.parse(json['edit_deadline'] as String),
+    reply: json['reply'] == null
+        ? null
+        : ReviewReply.fromJson(json['reply'] as JsonMap),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    externalReviewUrl2gis: json['external_review_url_2gis'] as String?,
+  );
+}
+
+class EmployeeRating {
+  const EmployeeRating({
+    required this.employeeId,
+    required this.averageRating,
+    required this.reviewsCount,
+    required this.distribution,
+    required this.averageQualityRating,
+    required this.averageServiceRating,
+    required this.averagePunctualityRating,
+  });
+
+  final String employeeId;
+  final double? averageRating;
+  final int reviewsCount;
+  final Map<int, int> distribution;
+  final double? averageQualityRating;
+  final double? averageServiceRating;
+  final double? averagePunctualityRating;
+
+  factory EmployeeRating.fromJson(JsonMap json) => EmployeeRating(
+    employeeId: json['employee_id'] as String,
+    averageRating: (json['average_rating'] as num?)?.toDouble(),
+    reviewsCount: json['reviews_count'] as int,
+    distribution: (json['distribution'] as JsonMap).map(
+      (key, value) => MapEntry(int.parse(key), value as int),
+    ),
+    averageQualityRating: (json['average_quality_rating'] as num?)?.toDouble(),
+    averageServiceRating: (json['average_service_rating'] as num?)?.toDouble(),
+    averagePunctualityRating: (json['average_punctuality_rating'] as num?)
+        ?.toDouble(),
+  );
+}
+
+class ReviewPage {
+  const ReviewPage({required this.items, required this.total});
+  final List<Review> items;
+  final int total;
+
+  factory ReviewPage.fromJson(JsonMap json) => ReviewPage(
+    items: (json['items'] as List<dynamic>)
+        .map((item) => Review.fromJson(item as JsonMap))
+        .toList(growable: false),
+    total: json['total'] as int,
   );
 }
 

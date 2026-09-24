@@ -28,6 +28,12 @@ String readableError(BuildContext context, Object error) {
       return l10n.errorNoActiveLocation;
     case 'registration_login_failed':
       return l10n.accountCreatedLogin;
+    case 'APPOINTMENT_NOT_COMPLETED':
+      return l10n.reviewAppointmentNotCompleted;
+    case 'REVIEW_ALREADY_EXISTS':
+      return l10n.reviewAlreadyExists;
+    case 'REVIEW_EDIT_WINDOW_EXPIRED':
+      return l10n.reviewEditExpired;
   }
 
   switch (error.statusCode) {
@@ -188,10 +194,14 @@ class AppointmentCard extends StatelessWidget {
     super.key,
     required this.appointment,
     required this.onTap,
+    this.reviewActionLabel,
+    this.onReview,
   });
 
   final Appointment appointment;
   final VoidCallback onTap;
+  final String? reviewActionLabel;
+  final VoidCallback? onReview;
 
   @override
   Widget build(BuildContext context) {
@@ -202,61 +212,74 @@ class AppointmentCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 54,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      DateFormat.MMM(
-                        Localizations.localeOf(context).languageCode,
-                      ).format(start).toUpperCase(),
-                      style: const TextStyle(fontSize: 11),
+              Row(
+                children: [
+                  Container(
+                    width: 54,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    Text(
-                      '${start.day}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Text(
-                            appointment.service.name,
-                            style: Theme.of(context).textTheme.titleMedium,
+                        Text(
+                          DateFormat.MMM(
+                            Localizations.localeOf(context).languageCode,
+                          ).format(start).toUpperCase(),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        Text(
+                          '${start.day}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        StatusBadge(appointment.status),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(start)} · ${appointment.employee.name}',
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                appointment.service.name,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                            StatusBadge(appointment.status),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${DateFormat.Hm(Localizations.localeOf(context).languageCode).format(start)} · ${appointment.employee.name}',
+                        ),
+                        Text(
+                          appointment.branch.name,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                    Text(
-                      appointment.branch.name,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
               ),
-              const Icon(Icons.chevron_right_rounded),
+              if (reviewActionLabel != null && onReview != null) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: onReview,
+                  icon: const Icon(Icons.star_outline_rounded),
+                  label: Text(reviewActionLabel!),
+                ),
+              ],
             ],
           ),
         ),

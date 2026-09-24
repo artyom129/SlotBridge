@@ -81,4 +81,20 @@ class ApiClient {
       throw AppException.fromDio(error);
     }
   }
+
+  Future<dynamic> put(String path, {Object? data}) async {
+    try {
+      return (await _dio.put<dynamic>(path, data: data)).data;
+    } on DioException catch (error) {
+      throw AppException.fromDio(error);
+    }
+  }
+
+  Future<void> delete(String path) async {
+    try {
+      await _dio.delete<dynamic>(path);
+    } on DioException catch (error) {
+      throw AppException.fromDio(error);
+    }
+  }
 }

@@ -16,7 +16,14 @@ from pydantic import (
     model_validator,
 )
 
-from app.models import AppointmentAuditAction, AppointmentStatus, UserRole, WaitlistStatus
+from app.models import (
+    AppointmentAuditAction,
+    AppointmentStatus,
+    ReviewReportStatus,
+    ReviewStatus,
+    UserRole,
+    WaitlistStatus,
+)
 
 
 class ORMModel(BaseModel):
@@ -107,6 +114,7 @@ class OrganizationOut(ORMModel):
     slug: str
     timezone: str
     is_active: bool
+    external_review_url_2gis: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -384,6 +392,7 @@ class AppointmentOut(BaseModel):
     cancelled_at: AwareDatetime | None
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    review_id: UUID | None = None
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
@@ -444,3 +453,219 @@ class AppointmentDetailOut(AppointmentOut):
 
 class AppointmentListResponse(BaseModel):
     items: list[AppointmentOut]
+
+
+class ReviewCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    appointment_id: UUID
+    overall_rating: int = Field(ge=1, le=5)
+    quality_rating: int | None = Field(default=None, ge=1, le=5)
+    service_rating: int | None = Field(default=None, ge=1, le=5)
+    punctuality_rating: int | None = Field(default=None, ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=5000)
+    is_anonymous: bool = False
+
+    @field_validator("comment")
+    @classmethod
+    def normalize_comment(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+
+class ReviewUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    overall_rating: int | None = Field(default=None, ge=1, le=5)
+    quality_rating: int | None = Field(default=None, ge=1, le=5)
+    service_rating: int | None = Field(default=None, ge=1, le=5)
+    punctuality_rating: int | None = Field(default=None, ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=5000)
+    is_anonymous: bool | None = None
+
+    @model_validator(mode="after")
+    def require_change(self) -> "ReviewUpdateRequest":
+        if not self.model_fields_set:
+            raise ValueError("At least one review field is required")
+        if "overall_rating" in self.model_fields_set and self.overall_rating is None:
+            raise ValueError("overall_rating cannot be null")
+        return self
+
+    @field_validator("comment")
+    @classmethod
+    def normalize_comment(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+
+class ReviewReplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Reply must not be blank")
+        return stripped
+
+
+class ReviewReportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=1, max_length=100)
+    comment: str | None = Field(default=None, max_length=1000)
+
+
+class ReviewModerationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: ReviewStatus
+    reason: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("status")
+    @classmethod
+    def validate_moderation_status(cls, value: ReviewStatus) -> ReviewStatus:
+        if value not in {ReviewStatus.PUBLISHED, ReviewStatus.HIDDEN, ReviewStatus.FLAGGED}:
+            raise ValueError("Unsupported moderation status")
+        return value
+
+
+class ReviewReplyOut(ORMModel):
+    id: UUID
+    author_user_id: UUID | None = None
+    author_label: str
+    text: str
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def normalize_times(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class ReviewOut(BaseModel):
+    id: UUID
+    appointment_id: UUID | None = None
+    employee_id: UUID
+    service_id: UUID
+    service_name: str | None = None
+    client_user_id: UUID | None = None
+    client_display_name: str
+    overall_rating: int
+    quality_rating: int | None
+    service_rating: int | None
+    punctuality_rating: int | None
+    comment: str | None
+    is_anonymous: bool
+    status: ReviewStatus | None = None
+    can_edit: bool = False
+    edit_deadline: AwareDatetime | None = None
+    reply: ReviewReplyOut | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    external_review_url_2gis: str | None = None
+
+    @field_validator("created_at", "updated_at", "edit_deadline", mode="before")
+    @classmethod
+    def normalize_times(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class ReviewListResponse(BaseModel):
+    items: list[ReviewOut]
+    page: int
+    page_size: int
+    total: int
+    pages: int
+
+
+class EmployeeRatingOut(BaseModel):
+    employee_id: UUID
+    average_rating: float | None
+    reviews_count: int
+    distribution: dict[int, int]
+    average_quality_rating: float | None
+    average_service_rating: float | None
+    average_punctuality_rating: float | None
+
+
+class ReviewReportOut(ORMModel):
+    id: UUID
+    review_id: UUID
+    reporter_user_id: UUID
+    reason: str
+    comment: str | None
+    status: ReviewReportStatus
+    created_at: AwareDatetime
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def normalize_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
+class ReviewReportStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: ReviewReportStatus
+
+    @field_validator("status")
+    @classmethod
+    def require_closed_status(cls, value: ReviewReportStatus) -> ReviewReportStatus:
+        if value == ReviewReportStatus.OPEN:
+            raise ValueError("Use RESOLVED or DISMISSED")
+        return value
+
+
+class AdminReviewOut(ReviewOut):
+    moderation_note: str | None = None
+    reports: list[ReviewReportOut] = Field(default_factory=list)
+
+
+class AdminReviewListResponse(BaseModel):
+    items: list[AdminReviewOut]
+    page: int
+    page_size: int
+    total: int
+    pages: int
+
+
+class RatingBreakdownItem(BaseModel):
+    id: UUID
+    name: str
+    average_rating: float | None
+    reviews_count: int
+
+
+class RatingTrendPoint(BaseModel):
+    date: date
+    average_rating: float
+    reviews_count: int
+
+
+class ReviewAnalyticsOut(BaseModel):
+    reviews_count: int
+    average_rating: float | None
+    negative_reviews_count: int
+    flagged_reviews_count: int
+    by_employee: list[RatingBreakdownItem]
+    by_service: list[RatingBreakdownItem]
+    trend: list[RatingTrendPoint]
+
+
+class ReviewAiSummaryOut(BaseModel):
+    summary: str
+    generated_by: Literal["gemini", "fallback"]
+    disclaimer: str

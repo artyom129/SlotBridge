@@ -78,6 +78,7 @@ def _appointment_out(appointment: Appointment) -> AppointmentOut:
         cancelled_at=cancelled_at,
         created_at=appointment.created_at,
         updated_at=appointment.updated_at,
+        review_id=appointment.review.id if appointment.review is not None else None,
     )
 
 

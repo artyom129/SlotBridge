@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_access_token_expire_minutes: int = Field(default=30, ge=5, le=1440)
     availability_slot_interval_minutes: int = Field(default=15, ge=1, le=60)
+    review_edit_window_hours: int = Field(default=24, ge=1, le=720)
     slotbridge_environment: Literal["development", "test", "demo", "production"] = (
         "development"
     )
