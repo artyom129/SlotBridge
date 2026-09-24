@@ -19,7 +19,6 @@ from app.models import (
     ReviewReportStatus,
     ReviewStatus,
     Service,
-    Organization,
     User,
     UserRole,
 )
@@ -68,6 +67,7 @@ class ReviewService:
             select(Review)
             .options(
                 selectinload(Review.client),
+                selectinload(Review.organization),
                 selectinload(Review.service),
                 selectinload(Review.reply).selectinload(ReviewReply.author),
             )
@@ -261,6 +261,7 @@ class ReviewService:
             select(Review)
             .options(
                 selectinload(Review.client),
+                selectinload(Review.organization),
                 selectinload(Review.service),
                 selectinload(Review.reply).selectinload(ReviewReply.author),
             )
@@ -280,6 +281,7 @@ class ReviewService:
             select(Review)
             .options(
                 selectinload(Review.client),
+                selectinload(Review.organization),
                 selectinload(Review.service),
                 selectinload(Review.reply).selectinload(ReviewReply.author),
             )
@@ -428,6 +430,7 @@ class ReviewService:
             select(Review)
             .options(
                 selectinload(Review.client),
+                selectinload(Review.organization),
                 selectinload(Review.service),
                 selectinload(Review.reply).selectinload(ReviewReply.author),
                 selectinload(Review.reports),
@@ -594,11 +597,7 @@ class ReviewService:
             "reply": reply,
             "created_at": review.created_at,
             "updated_at": review.updated_at,
-            "external_review_url_2gis": self.session.scalar(
-                select(Organization.external_review_url_2gis).where(
-                    Organization.id == review.organization_id
-                )
-            )
+            "external_review_url_2gis": review.organization.external_review_url_2gis
             if is_owner
             else None,
         }

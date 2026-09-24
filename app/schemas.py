@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
+import re
 from typing import Literal
+from urllib.parse import urlsplit
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -117,6 +119,27 @@ class OrganizationOut(ORMModel):
     external_review_url_2gis: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class OrganizationReviewSettingsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    external_review_url_2gis: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("external_review_url_2gis")
+    @classmethod
+    def validate_2gis_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None
+        parsed = urlsplit(stripped)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or not host or not re.fullmatch(
+            r"(?:[a-z0-9-]+\.)*2gis\.[a-z]{2,}", host
+        ):
+            raise ValueError("Must be an official HTTPS 2GIS URL")
+        return stripped
 
 
 class BranchOut(ORMModel):

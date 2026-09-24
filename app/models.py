@@ -786,7 +786,9 @@ class Review(TimestampMixin, Base):
         Index("ix_reviews_service_status", "service_id", "status"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    organization_id: Mapped[UUID] = mapped_column(nullable=False)
+    organization_id: Mapped[UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False
+    )
     appointment_id: Mapped[UUID] = mapped_column(nullable=False)
     client_user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -802,6 +804,9 @@ class Review(TimestampMixin, Base):
     status: Mapped[ReviewStatus] = mapped_column(SAEnum(ReviewStatus, name="review_status", validate_strings=True), default=ReviewStatus.PUBLISHED, nullable=False)
     moderation_note: Mapped[str | None] = mapped_column(String(1000))
     appointment: Mapped[Appointment] = relationship(back_populates="review")
+    organization: Mapped[Organization] = relationship(
+        foreign_keys=[organization_id], viewonly=True
+    )
     client: Mapped[User] = relationship(foreign_keys=[client_user_id], viewonly=True)
     employee: Mapped[Employee] = relationship(foreign_keys=[employee_id, organization_id], viewonly=True)
     service: Mapped[Service] = relationship(foreign_keys=[service_id, organization_id], viewonly=True)

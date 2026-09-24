@@ -320,3 +320,24 @@ def test_ai_summary_sends_only_minimal_sanitized_review_data(
     assert "appointment_id" not in captured["rows"][0]
     assert "client@example.com" not in captured["rows"][0]["comment"]
     assert "777 123" not in captured["rows"][0]["comment"]
+
+
+def test_admin_can_configure_only_official_https_2gis_url(client, session):
+    domain = create_booking_domain(session)
+    headers = auth_headers(client, domain.admin)
+    endpoint = f"/admin/organizations/{domain.organization.id}/review-settings"
+
+    invalid = client.patch(
+        endpoint,
+        headers=headers,
+        json={"external_review_url_2gis": "http://example.com/reviews"},
+    )
+    assert invalid.status_code == 422
+
+    updated = client.patch(
+        endpoint,
+        headers=headers,
+        json={"external_review_url_2gis": "https://2gis.kz/almaty/firm/example"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["external_review_url_2gis"].startswith("https://2gis.kz/")

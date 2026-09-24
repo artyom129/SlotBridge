@@ -11,10 +11,21 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.dependencies import AuthenticatedUser, require_client
-from app.models import Employee, Review, ReviewStatus, Service, User
+from app.models import (
+    Employee,
+    Organization,
+    OrganizationMembership,
+    Review,
+    ReviewStatus,
+    Service,
+    User,
+    UserRole,
+)
 from app.schemas import (
     AdminReviewListResponse,
     EmployeeRatingOut,
+    OrganizationOut,
+    OrganizationReviewSettingsRequest,
     ReviewAiSummaryOut,
     ReviewAnalyticsOut,
     ReviewCreateRequest,
@@ -47,6 +58,31 @@ def _service(session: Session, settings: Settings) -> ReviewService:
         session,
         edit_window_hours=settings.review_edit_window_hours,
     )
+
+
+@router.patch(
+    "/admin/organizations/{organization_id}/review-settings",
+    response_model=OrganizationOut,
+)
+def update_review_settings(
+    organization_id: UUID,
+    payload: OrganizationReviewSettingsRequest,
+    actor: AuthenticatedUser,
+    session: Annotated[Session, Depends(get_db)],
+) -> Organization:
+    is_member = session.scalar(
+        select(OrganizationMembership.user_id).where(
+            OrganizationMembership.user_id == actor.id,
+            OrganizationMembership.organization_id == organization_id,
+        )
+    )
+    organization = session.get(Organization, organization_id)
+    if actor.role != UserRole.ADMIN or is_member is None or organization is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    organization.external_review_url_2gis = payload.external_review_url_2gis
+    session.commit()
+    session.refresh(organization)
+    return organization
 
 
 @router.post("/reviews", response_model=ReviewOut, status_code=status.HTTP_201_CREATED)
