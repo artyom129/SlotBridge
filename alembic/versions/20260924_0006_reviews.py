@@ -34,6 +34,7 @@ def upgrade():
         sa.CheckConstraint("punctuality_rating IS NULL OR punctuality_rating BETWEEN 1 AND 5", name="ck_reviews_punctuality_rating"),
         sa.UniqueConstraint("appointment_id", name="uq_reviews_appointment"), sa.UniqueConstraint("id", "organization_id", name="uq_reviews_id_org"),
         sa.ForeignKeyConstraint(["appointment_id", "organization_id"], ["appointments.id", "appointments.organization_id"], name="fk_reviews_appointment_org", ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], name="fk_reviews_organization", ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["client_user_id", "organization_id"], ["organization_memberships.user_id", "organization_memberships.organization_id"], name="fk_reviews_client_membership", ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["client_user_id"], ["users.id"], name="fk_reviews_client_user", ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["employee_id", "organization_id"], ["employees.id", "employees.organization_id"], name="fk_reviews_employee_org", ondelete="RESTRICT"),

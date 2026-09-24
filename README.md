@@ -280,6 +280,7 @@ Alembic управляет схемой и PostgreSQL-ограничениями
 | `POST /reviews/{id}/reports` | жалоба без повторного спама |
 | `PUT /reviews/{id}/reply` | официальный ответ сотрудника/организации |
 | `GET /admin/organizations/{id}/reviews` | moderation queue и причины жалоб |
+| `PATCH /admin/organizations/{id}/review-settings` | HTTPS-ссылка карточки 2GIS |
 | `PATCH /admin/reviews/{id}/moderation` | скрыть, flag или восстановить |
 | `PATCH /admin/review-reports/{id}` | закрыть или отклонить жалобу |
 | `GET /admin/organizations/{id}/reviews/analytics` | агрегаты с фильтрами |
