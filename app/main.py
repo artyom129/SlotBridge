@@ -11,11 +11,13 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
+from sqlalchemy.orm import Session
 
 from app.api import admin, appointments as appointment_api, auth, domain, health as health_api, journeys, reviews, schedules, version, waitlist, ai
 from app.config import Settings, get_settings
 from app.core import DB, Service
-from app.dependencies import require_admin
+from app.database import get_db
+from app.dependencies import require_admin, require_client
 from app.models import User
 from app.webhook_security import verify_webhook
 
@@ -45,6 +47,52 @@ if settings.cors_origins:
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
         expose_headers=["Idempotency-Replayed"],
     )
+
+
+@app.post("/ai/chat", include_in_schema=False)
+def ai_chat_guard(
+    payload: ai.ChatRequest,
+    client: Annotated[User, Depends(require_client)],
+    session: Annotated[Session, Depends(get_db)],
+    app_settings: Annotated[Settings, Depends(get_settings)],
+):
+    state = dict(payload.state)
+    selection = payload.selection
+    message = payload.message.strip().casefold()
+
+    if selection is None and message in {"записаться", "book appointment"}:
+        state = {}
+
+    if selection is not None and selection.type == "service":
+        state.pop("employee", None)
+        state.pop("date", None)
+        state.pop("time", None)
+        state.pop("candidate_slots", None)
+        state.pop("pending_action", None)
+
+    if selection is not None and selection.type == "employee":
+        state["employee"] = selection.label
+        state.pop("candidate_slots", None)
+        if state.get("service") and not state.get("date"):
+            return {
+                "text": (
+                    "На какой день вы хотите записаться?"
+                    if payload.locale == "ru"
+                    else "What day would you like to book?"
+                ),
+                "items": [],
+                "state": state,
+            }
+
+    if state != payload.state:
+        payload = payload.model_copy(update={"state": state})
+
+    result = ai.chat(payload, client, session, app_settings)
+    if isinstance(result, dict) and isinstance(result.get("text"), str):
+        result["text"] = result["text"].replace("**", "")
+    return result
+
+
 app.include_router(auth.router)
 app.include_router(domain.router)
 app.include_router(admin.router)
