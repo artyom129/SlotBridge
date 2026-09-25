@@ -5,7 +5,7 @@
 **Готовая мобильная система записи клиентов, управления расписанием и интеллектуального подбора времени.**
 
 [![Status](https://img.shields.io/badge/Status-Production-2ea44f)](https://slotbridge-api.onrender.com)
-[![Release](https://img.shields.io/badge/Android-v1.1.5-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)
+[![Release](https://img.shields.io/badge/Android-v1.1.6-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6)
 [![CI](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/artyom129/SlotBridge/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/License-Proprietary-c62828)](LICENSE.md)
 
@@ -15,8 +15,8 @@
 [![Gemini](https://img.shields.io/badge/Gemini-AI-8E75B2?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-**[Скачать APK](https://github.com/artyom129/SlotBridge/releases/download/v1.1.5/SlotBridge-1.1.5-9-production.apk)** ·
-**[GitHub Release](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5)** ·
+**[Скачать APK](https://github.com/artyom129/SlotBridge/releases/download/v1.1.6/SlotBridge-1.1.6-10-production.apk)** ·
+**[GitHub Release](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6)** ·
 **[Production API](https://slotbridge-api.onrender.com)** ·
 **[Архитектура](docs/architecture.md)** ·
 **[Настройка](docs/setup.md)**
@@ -25,7 +25,7 @@
 
 > **Статус проекта:** завершён и развёрнут. Основной функционал зафиксирован; дальнейшие изменения предназначены только для критических исправлений и технического обслуживания.
 
-Актуальная Android-версия: **1.1.5 (versionCode 9)**.
+Актуальная Android-версия: **1.1.6 (versionCode 10)**.
 
 ## О проекте
 
@@ -167,11 +167,11 @@ flowchart LR
 
 | Компонент | Состояние |
 |---|---|
-| Android | **v1.1.5 · versionCode 9** |
+| Android | **v1.1.6 · versionCode 10** |
 | Backend | [Render](https://slotbridge-api.onrender.com) |
 | Database | Supabase PostgreSQL |
 | Transport | HTTPS |
-| APK | [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5) |
+| APK | [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6) |
 | Health | `GET /api/v1/health/live` |
 
 Render используется на бесплатном тарифе, поэтому первый запрос после периода простоя может занять больше времени из-за cold start.
@@ -291,7 +291,7 @@ Alembic управляет схемой и PostgreSQL-ограничениями
 - backend: [Render](https://slotbridge-api.onrender.com);
 - database: Supabase Free PostgreSQL;
 - transport: HTTPS;
-- Android APK: [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.5).
+- Android APK: [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6).
 
 На бесплатном Render первый запрос после простоя может занять больше времени из-за
 cold start. Health endpoint: `GET /api/v1/health/live`.
