@@ -2,7 +2,9 @@
 
 # SlotBridge
 
-**Production-ready mobile booking and scheduling platform with AI-assisted workflows, smart availability, and post-appointment reviews.**
+**Booking for service businesses that does not double-book, does not lose a slot when plans change and lets a client book a whole visit in one sentence.**
+
+English · [Русский](README.ru.md) · [Қазақша](README.kk.md)
 
 [![Status](https://img.shields.io/badge/Status-Production-2ea44f)](https://slotbridge-api.onrender.com)
 [![Release](https://img.shields.io/badge/Android-v1.1.6-3DDC84?logo=android&logoColor=white)](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6)
@@ -23,89 +25,54 @@
 
 </div>
 
-> **Current Android version:** `1.1.6` · `versionCode 10`
+## Why SlotBridge exists
 
-## What is SlotBridge?
+A salon, a clinic or a studio lives and dies by its calendar. Two clients in one chair at 14:00, a cancelled slot nobody fills, a client who wants a haircut and a manicure and has to call twice: each of these costs money every week.
 
-SlotBridge is a full client-server booking platform for service businesses.
+SlotBridge is a full booking platform built around those moments. The client picks a service and a specialist, sees real free time, books, moves or cancels the visit and leaves a review afterwards. The backend owns every rule. Two people cannot take the same slot, one organization never sees another's data, and everything lives in PostgreSQL.
 
-A client can choose a service and specialist, see real availability, create an appointment, reschedule it, cancel it, and leave a review after the visit is completed. The backend owns the business rules, prevents conflicting bookings, keeps tenant data isolated, and stores production data in PostgreSQL.
+It runs in production today: **Flutter → FastAPI → PostgreSQL**, with the API on Render, the database on Supabase and the Android app shipped through GitHub Releases.
 
-The system also includes smarter scheduling flows such as **Smart Slots**, **Waitlist**, **Conflict Rescue**, **Multi-Service Smart Journey**, and **SlotBridge AI** powered by Google Gemini.
+## What a client can do
 
-The production architecture is:
-
-**Flutter → FastAPI → PostgreSQL**
-
-with the backend deployed on Render and PostgreSQL hosted on Supabase.
-
-## Core Features
-
-| Area | Capabilities |
-|---|---|
-| Booking | Service, specialist, and real availability selection |
-| Appointments | Create, reschedule, cancel, list, and inspect appointment history |
+| Area | What it covers |
+| --- | --- |
+| Booking | Choose a service, a specialist and a real free slot |
+| Appointments | Book, move, cancel, list and open past visits |
 | Scheduling | Smart Slots, Waitlist, Conflict Rescue |
-| Multi-service visits | Smart Journey with multiple route strategies |
-| AI assistant | Natural-language booking, rescheduling, cancellation, and availability workflows |
-| Reviews | Post-appointment reviews, specialist ratings, moderation, reports, and official replies |
-| Review intelligence | Aggregated analytics and privacy-safe Gemini summaries |
-| Profile | Registration, authentication, and profile editing |
-| Localization | Russian and English |
-| Appearance | Light, dark, and system theme |
-| Updates | In-app release checks, APK download, SHA-256 verification, and Android installer handoff |
-| Reliability | Transactions, idempotency, tenant isolation, and double-booking protection |
-
-## Reviews and Specialist Ratings
-
-Reviews are tied to real completed appointments.
-
-A client can leave one review only when the appointment status is `COMPLETED`. The organization, service, specialist, and client are derived from the appointment on the backend instead of being trusted from the request body.
-
-The review system supports:
-
-- overall rating from 1 to 5;
-- quality, service, and punctuality ratings;
-- optional written feedback;
-- anonymous public display;
-- configurable edit window;
-- specialist rating aggregates;
-- 1-to-5-star distribution;
-- moderation with `PUBLISHED`, `HIDDEN`, and `FLAGGED` states;
-- duplicate-protected reports;
-- official employee or organization replies;
-- admin analytics;
-- privacy-safe Gemini summaries.
-
-For high ratings, SlotBridge can offer the client an explicit link to the organization's verified 2GIS page. Internal review content is never published to 2GIS automatically.
+| Several services in one visit | Smart Journey with three route strategies |
+| AI assistant | Book, move, cancel and check free time in plain words |
+| Reviews | Reviews after a visit, specialist ratings, moderation, reports, official replies |
+| Review insights | Analytics and Gemini summaries that keep clients anonymous |
+| Profile | Sign-up, sign-in, profile editing |
+| Languages | Russian and English |
+| Appearance | Light, dark and system theme |
+| Updates | Release check in the app, APK download, SHA-256 check, Android installer |
+| Reliability | Transactions, idempotency, tenant isolation, no double booking |
 
 ## SlotBridge AI
 
-SlotBridge AI uses Google Gemini through the backend rather than giving the model direct access to the database.
+A client writes "a haircut with Aida on Friday after six, then a manicure" and the assistant does the rest. It finds the services and specialists, understands dates, weekdays and times, checks real availability, handles several services at once and remembers the conversation between steps.
 
-It can:
+Gemini works only through the backend. It calls approved backend tools and domain services and never sees PostgreSQL, JWTs, passwords or secrets. Anything that changes data (a booking, a move, a cancellation) waits for the client's explicit confirmation.
 
-- find services and specialists from natural-language requests;
-- understand dates, weekdays, and times;
-- check real availability;
-- prepare bookings, rescheduling, and cancellations;
-- handle multi-service requests;
-- preserve context between steps;
-- require explicit confirmation before data-changing actions.
+## Smart Journey
 
-Gemini does **not** receive direct PostgreSQL access, JWTs, passwords, or application secrets. All actions pass through approved backend tools and domain services.
+Smart Journey turns several services into one visit. It builds the route from real employee availability, service length, waiting time and who can do what, with three strategies:
 
-## Multi-Service Smart Journey
+- **Fastest**: the shortest total visit
+- **Earliest**: the earliest start that works
+- **Fewer specialists**: as few handovers as possible
 
-Smart Journey combines multiple services into one visit and builds a route using real employee availability, service duration, waiting time, and specialist assignment.
+The whole journey is booked in one transaction. If any step collides with a taken interval, nothing is booked, so a client never ends up with half a visit.
 
-Available strategies:
+## Reviews that mean something
 
-- **Fastest** — minimize total visit duration;
-- **Earliest** — find the earliest valid start;
-- **Fewer specialists** — minimize specialist changes.
+A review can only be left for a real appointment with status `COMPLETED`, once. The organization, service, specialist and client are taken from the appointment on the server, never from the request body.
 
-The final journey is booked atomically. If any step conflicts with an occupied interval, the system does not create a partial booking.
+A review has an overall score from 1 to 5, separate scores for quality, service and punctuality, an optional comment, an anonymous public mode and an edit window. Specialists get rating aggregates and a star distribution. Moderators work with `PUBLISHED`, `HIDDEN` and `FLAGGED`, reports are protected from duplicates, and an employee or the organization can post an official reply.
+
+After a high score the client may get a link to the organization's verified 2GIS page. Nothing from inside SlotBridge is posted to 2GIS automatically.
 
 ## Architecture
 
@@ -119,12 +86,10 @@ flowchart LR
     S --> P
 ```
 
-More detail: [`docs/architecture.md`](docs/architecture.md).
-
-## Technology Stack
+More in [`docs/architecture.md`](docs/architecture.md).
 
 | Layer | Stack |
-|---|---|
+| --- | --- |
 | Mobile | Flutter, Dart, Riverpod, GoRouter, Dio, Secure Storage |
 | Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
 | Database | PostgreSQL |
@@ -132,34 +97,25 @@ More detail: [`docs/architecture.md`](docs/architecture.md).
 | Infrastructure | Render, Supabase PostgreSQL, GitHub Releases |
 | Testing | Pytest, Flutter Test, GitHub Actions |
 
-## Reliability and Security
+## Security and reliability
 
-- JWT authentication;
-- RBAC and tenant isolation;
-- Argon2 password hashing;
-- PostgreSQL transactions;
-- exclusion constraints for active booking intervals;
-- idempotency for critical mutations;
-- HMAC verification for webhook flows;
-- explicit confirmation before AI-triggered mutations;
-- backend-only secret storage;
-- HTTPS production API;
-- no production secrets committed to Git or embedded in the mobile client.
+- JWT sign-in, roles and strict tenant isolation
+- Argon2 password hashing
+- PostgreSQL transactions and exclusion constraints on active booking intervals, so the database itself refuses a double booking
+- Idempotency on every critical write
+- HMAC checks on incoming webhooks
+- Explicit confirmation before any change the AI proposes
+- Secrets live only on the backend: none in Git, none in the mobile app
+- HTTPS in production
 
-## Android Updater
+## Android updates
 
-The built-in updater can:
-
-1. check release metadata;
-2. download the latest APK from GitHub Releases;
-3. verify its SHA-256 hash;
-4. reuse an already verified package when possible;
-5. hand the APK to the Android system installer.
+The app updates itself without a store. It reads release metadata, downloads the newest APK from GitHub Releases, checks its SHA-256, reuses a package it has already verified and hands it to the Android installer.
 
 ## Production
 
 | Component | Status |
-|---|---|
+| --- | --- |
 | Android | **v1.1.6 · versionCode 10** |
 | Backend | [Render](https://slotbridge-api.onrender.com) |
 | Database | Supabase PostgreSQL |
@@ -167,25 +123,25 @@ The built-in updater can:
 | APK | [GitHub Releases](https://github.com/artyom129/SlotBridge/releases/tag/v1.1.6) |
 | Health | `GET /api/v1/health/live` |
 
-Render is currently used on a free tier, so the first request after an idle period can take longer because of cold start.
+The API runs on Render's free tier, so the first request after a quiet period takes a little longer while the server wakes up.
 
-## Repository Structure
+## Repository
 
-| Directory | Purpose |
-|---|---|
-| `app/` | FastAPI routes, models, schemas, and backend services |
+| Folder | What is inside |
+| --- | --- |
+| `app/` | FastAPI routes, models, schemas and backend services |
 | `mobile/` | Flutter Android client |
-| `tests/` | Backend unit, integration, and concurrency tests |
+| `tests/` | Backend unit, integration and concurrency tests |
 | `alembic/` | PostgreSQL migrations |
-| `docs/` | Architecture and setup documentation |
-| `scripts/` | Startup, seed, verification, and helper scripts |
-| `.github/workflows/` | CI workflows |
+| `docs/` | Architecture and setup |
+| `scripts/` | Start, seed, checks and helpers |
+| `.github/workflows/` | CI |
 
-## Local Development
+## Run it locally
 
-Full setup guide: [`docs/setup.md`](docs/setup.md).
+Full guide: [`docs/setup.md`](docs/setup.md).
 
-### Backend
+Backend:
 
 ```powershell
 python -m venv .venv
@@ -196,32 +152,16 @@ alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Swagger UI: `http://127.0.0.1:8000/docs`
+Swagger: `http://127.0.0.1:8000/docs`
 
-### Windows Native PostgreSQL
+With a native PostgreSQL on Windows: `.\start_slotbridge.bat`, stop with `.\stop_slotbridge.bat`. With Docker: `docker compose up --build`.
 
-```powershell
-.\start_slotbridge.bat
-```
-
-Stop:
-
-```powershell
-.\stop_slotbridge.bat
-```
-
-### Docker
-
-```powershell
-docker compose up --build
-```
-
-### Mobile
+Mobile (use your computer's LAN address so the phone can reach the API):
 
 ```powershell
 cd mobile
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://192.168.100.7:8000
+flutter run --dart-define=API_BASE_URL=http://<your-lan-ip>:8000
 ```
 
 Production build:
@@ -230,61 +170,55 @@ Production build:
 flutter build apk --release --dart-define=API_BASE_URL=https://slotbridge-api.onrender.com
 ```
 
-## Environment Variables
+## Configuration
 
-`.env.example` contains safe placeholders.
+`.env.example` holds safe placeholders only.
 
 | Variable | Purpose |
-|---|---|
-| `SLOTBRIDGE_ENVIRONMENT` | `development`, `test`, or `production` |
+| --- | --- |
+| `SLOTBRIDGE_ENVIRONMENT` | `development`, `test` or `production` |
 | `DATABASE_URL` | PostgreSQL connection URL |
 | `JWT_SECRET` | JWT signing secret |
 | `CORS_ALLOWED_ORIGINS` | Allowed origins |
-| `GEMINI_API_KEY` | Backend-only Gemini API key |
-| `GEMINI_MODEL` | Gemini model used by the backend |
-| `REVIEW_EDIT_WINDOW_HOURS` | Review edit window, default `24` |
+| `GEMINI_API_KEY` | Gemini key, backend only |
+| `GEMINI_MODEL` | Gemini model the backend uses |
+| `REVIEW_EDIT_WINDOW_HOURS` | Review edit window, `24` by default |
 
-Production secrets belong in the hosting environment and should never be committed to the repository.
+Production secrets belong in the hosting environment, never in the repository.
 
-## Database Migrations
+## Migrations
 
 ```powershell
 alembic current
 alembic upgrade head
 ```
 
-Alembic manages schema evolution and PostgreSQL constraints.
-
-The review module is introduced by migration `20260924_0006`, adding review, report, reply, audit-log, and 2GIS configuration support.
+Alembic owns the schema and the PostgreSQL constraints. Reviews arrive with migration `20260924_0006`: reviews, reports, replies, an audit log and the 2GIS settings.
 
 ## Review API
 
 | Endpoint | Purpose |
-|---|---|
-| `POST /reviews` | Create a review for a completed appointment |
-| `GET/PATCH/DELETE /reviews/{id}` | Read, edit, or soft-delete a review |
-| `GET /me/reviews` | Current client's review history |
-| `GET /appointments/{id}/review` | Review for a specific appointment |
-| `GET /employees/{id}/reviews` | Published specialist reviews |
+| --- | --- |
+| `POST /reviews` | Review a completed appointment |
+| `GET/PATCH/DELETE /reviews/{id}` | Read, edit or soft-delete a review |
+| `GET /me/reviews` | The current client's reviews |
+| `GET /appointments/{id}/review` | The review for one appointment |
+| `GET /employees/{id}/reviews` | Published reviews of a specialist |
 | `GET /employees/{id}/rating` | Rating aggregates and star distribution |
 | `POST /reviews/{id}/reports` | Report a review |
-| `PUT /reviews/{id}/reply` | Create or update an official reply |
+| `PUT /reviews/{id}/reply` | Post or update an official reply |
 | `GET /admin/organizations/{id}/reviews` | Moderation queue |
-| `PATCH /admin/organizations/{id}/review-settings` | Configure the verified 2GIS link |
-| `PATCH /admin/reviews/{id}/moderation` | Hide, flag, or restore a review |
+| `PATCH /admin/organizations/{id}/review-settings` | Set the verified 2GIS link |
+| `PATCH /admin/reviews/{id}/moderation` | Hide, flag or restore a review |
 | `PATCH /admin/review-reports/{id}` | Resolve or dismiss a report |
-| `GET /admin/organizations/{id}/reviews/analytics` | Aggregated analytics |
-| `GET /admin/organizations/{id}/reviews/ai-summary` | Privacy-safe Gemini summary |
+| `GET /admin/organizations/{id}/reviews/analytics` | Review analytics |
+| `GET /admin/organizations/{id}/reviews/ai-summary` | Anonymous Gemini summary |
 
-## Verification
-
-Backend:
+## Tests
 
 ```powershell
 python -m pytest
 ```
-
-Flutter:
 
 ```powershell
 cd mobile
@@ -292,20 +226,17 @@ flutter analyze
 flutter test
 ```
 
-GitHub Actions is also configured for automated checks.
+CI runs the backend suite against a real PostgreSQL, including the concurrency test where ten requests race for one slot and exactly one booking comes out, and runs `flutter analyze` and `flutter test` for the app.
 
 ## Author
 
-**Artyom Koncha**  
-Python Backend · Automation · Product Development
-
-GitHub: [@artyom129](https://github.com/artyom129)
+[Koncha Artyom](https://github.com/artyom129) · Python backend, automation, product development
 
 ## License
 
-SlotBridge is **proprietary source-available software**. The public repository exists for technical review, portfolio visibility, and evaluation of the product. Public access to the source code does **not** make the project open source.
+SlotBridge is **proprietary, source-available software**. The code is public so it can be reviewed and evaluated; that does not make it open source.
 
-Use, modification, redistribution, commercial exploitation, rebranding, or incorporation into another product requires permission unless expressly allowed by [`LICENSE.md`](LICENSE.md) or mandatory applicable law.
+Using, changing, redistributing, selling, rebranding or building it into another product needs permission, unless [`LICENSE.md`](LICENSE.md) or mandatory law allows it.
 
 Full terms: [LICENSE](LICENSE.md) · [NOTICE](NOTICE)
 
